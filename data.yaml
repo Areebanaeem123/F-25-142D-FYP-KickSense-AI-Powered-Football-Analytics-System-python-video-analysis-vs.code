@@ -1,6 +1,0 @@
-train: /home/labuser/Desktop/KickSense/merged_dataset2/test
-val: /home/labuser/Desktop/KickSense/merged_dataset2/valid
-test: /home/labuser/Desktop/KickSense/merged_dataset2/test
-
-nc: 4  # number of classes
-names: ['ball','goalkeeper', 'player', 'refree']
