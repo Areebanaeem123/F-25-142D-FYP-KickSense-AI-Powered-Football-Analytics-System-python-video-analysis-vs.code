@@ -9,7 +9,7 @@ from team_classifier import TeamClassifier
 
 # === CONFIGURATION ===
 MODEL_PATH = "/home/labuser/Downloads/weights/best.pt"
-VIDEO_PATH = "/home/labuser/Desktop/KickSense/tayyab_vid.mp4"
+VIDEO_PATH = "tayyab_vid.mp4"
 OUTPUT_VIDEO = "styled_output_with_teams.mp4"
 CONF_THRESHOLD = 0.4
 SHOW_WINDOW = True
