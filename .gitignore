@@ -28,3 +28,4 @@ train_merged.py
 sample-per-class-check.py
 kick-Sense
 input_videos
+run_inference.py
