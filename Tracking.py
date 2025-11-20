@@ -68,7 +68,7 @@ def draw_legend(frame):
         for label, color in items:
             cv2.circle(frame, (lx + 20, y_offset), 8, color, -1)
             cv2.circle(frame, (lx + 20, y_offset), 8, (0, 0, 0), 1)
-            frame_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            frame_pil = Image.fromarray(cvyolov8s2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             draw = ImageDraw.Draw(frame_pil)
             draw.text((lx + 40, y_offset - 8), label, font=text_font, fill=(0, 0, 0))
             frame = cv2.cvtColor(np.array(frame_pil), cv2.COLOR_RGB2BGR)
