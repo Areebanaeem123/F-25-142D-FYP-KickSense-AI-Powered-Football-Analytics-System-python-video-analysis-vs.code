@@ -1,5 +1,6 @@
 import cv2, torch
 from Tracking import load_model, create_tracker, draw_ellipse, CLASS_COLORS, write_csv
+from team_classifier import classify_team
 
 VIDEO_PATH = "/home/labuser/Desktop/KickSense/input_videos/tayyab_vid.mp4"
 DISPLAY_SIZE = (900, 600)
@@ -46,6 +47,11 @@ while True:
         if not t.is_confirmed(): continue
         x1, y1, x2, y2 = map(int, t.to_ltrb())
         track_id = t.track_id
+        #crop players
+        crop= frame[y1:y2, x1:x2]
+        team = classify_team(crop)   
+        #predict teams using siglip
+        print(f"player ID: {track_id}, Team: {team}")
         try: cls = int(t.det_class)
         except: cls = 2
         draw_ellipse(frame, (x1, y1, x2, y2), CLASS_COLORS.get(cls,(255,255,255)), track_id)
