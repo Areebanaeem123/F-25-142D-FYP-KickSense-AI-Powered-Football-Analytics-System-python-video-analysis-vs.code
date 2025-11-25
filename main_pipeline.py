@@ -1,66 +1,93 @@
 import cv2
 import torch
 import numpy as np
+from collections import defaultdict
 from Tracking import load_model, create_tracker, draw_ellipse, CLASS_COLORS
-from sprint_speed_estimation import AdvancedSpeedEstimator, draw_speed_overlay
+from camera_movement_estimator import CameraMovementEstimator
+from speed_and_distance_estimator import SpeedAndDistance_Estimator
+
 VIDEO_PATH = "/home/labuser/Desktop/KickSense/input_videos/match.mp4"
 OUTPUT_VIDEO_PATH = "/home/labuser/Desktop/KickSense/video_results/output_advanced.mp4"
 STATS_CSV_PATH = "/home/labuser/Desktop/KickSense/video_results/player_stats_advanced.csv"
 DISPLAY_SIZE = (900, 600)
+
+# Pixel to meter conversion factor (approximate)
+# Standard football field is ~105m long and ~68m wide
+# Adjust this based on your video resolution and field coverage
+PIXELS_PER_METER = 30  # You can tune this value
+
+print("🎯 Running in NO-CALIBRATION mode (pixel-based approximation)")
+print(f"📏 Using conversion: {PIXELS_PER_METER} pixels = 1 meter")
+
 # Initialize models
 model = load_model("/home/labuser/Downloads/weights/best.pt")
 tracker = create_tracker()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 cap = cv2.VideoCapture(VIDEO_PATH)
+if not cap.isOpened():
+    print("❌ Error: Could not open video file")
+    exit()
 fps = int(cap.get(cv2.CAP_PROP_FPS))
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-# === INITIALIZE ADVANCED SPEED ESTIMATOR ===
-speed_estimator = AdvancedSpeedEstimator(
-    fps=fps,
-    frame_window=5  # Calculate speed over 5 frames for smoothness
-)
-# === HOMOGRAPHY CALIBRATION ===
-print("\n🎯 STEP 1: Homography Calibration")
-print("This will open a frame for you to mark the field corners.")
-print("You can use the penalty box or entire field.")
-
-# Get a frame for calibration
-cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-ret, calibration_frame = cap.read()
-cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Reset to beginning
-
-if ret:
-    # Option 1: Interactive calibration (RECOMMENDED)
-    homography = speed_estimator.set_homography_from_calibration(
-        calibration_frame,
-        field_width_meters=68.0,
-        field_length_meters=105.0
-    )
-    
-    # Option 2: Manual points (uncomment if you know the points)
-    # field_points_pixels = [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
-    # field_points_meters = [(0,0), (68,0), (68,105), (0,105)]
-    # homography = speed_estimator.set_homography_from_field_points(
-    #     field_points_pixels, field_points_meters
-    # )
-    
-    if homography is None:
-        print("❌ Calibration cancelled. Exiting...")
-        exit()
-else:
-    print("❌ Could not read frame for calibration")
+print(f"🎬 Video: {VIDEO_PATH}")
+print(f"📊 FPS: {fps}, Resolution: {width}x{height}, Total frames: {total_frames}")
+if total_frames <= 0:
+    print("❌ Error: Could not get total frame count. Video may be corrupted.")
+    cap.release()
     exit()
-
-print("\n🎬 Starting video processing with advanced speed estimation...")
-
-# Video writer for output
+# === INITIALIZE CAMERA MOVEMENT ESTIMATOR (using first frame) ===
+print("\n📷 Initializing camera movement estimator...")
+cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+ret, first_frame = cap.read()
+if not ret:
+    print("❌ Error: Could not read first frame")
+    cap.release()
+    exit()
+camera_estimator = CameraMovementEstimator(first_frame)
+print("✅ Camera movement estimator initialized")
+# === INITIALIZE SPEED AND DISTANCE ESTIMATOR ===
+speed_estimator = SpeedAndDistance_Estimator(fps=fps, frame_window=5)
+# === VIDEO WRITER ===
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out = cv2.VideoWriter(OUTPUT_VIDEO_PATH, fourcc, fps, (width, height))
-
-frame_idx = 0
+# Track storage structure: tracks[object_name][frame_idx][track_id] = info
+tracks = defaultdict(lambda: defaultdict(dict))
 track_class_map = {}
+camera_movement_per_frame = []
+
+# Variables for camera movement estimation
+old_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
+mask_features = np.zeros_like(old_gray)
+mask_features[:, 0:20] = 1
+mask_features[:, -20:] = 1
+
+old_features = cv2.goodFeaturesToTrack(
+    old_gray,
+    maxCorners=100,
+    qualityLevel=0.3,
+    minDistance=3,
+    blockSize=7,
+    mask=mask_features
+)
+camera_movement_per_frame.append([0, 0])
+
+lk_params = dict(
+    winSize=(15, 15),
+    maxLevel=2,
+    criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)
+)
+
+def get_foot_position(bbox):
+    """Get foot position from bbox"""
+    x1, y1, x2, y2 = bbox
+    return int((x1 + x2) / 2), int(y2)
+
+def pixel_to_meters(pixel_distance):
+    """Convert pixel distance to meters using approximation"""
+    return pixel_distance / PIXELS_PER_METER
 
 def draw_triangle_for_ball(frame, bbox, color):
     """Draw a triangle above the ball"""
@@ -68,87 +95,83 @@ def draw_triangle_for_ball(frame, bbox, color):
         x1, y1, x2, y2 = bbox
         x_center = int((x1 + x2) / 2)
         y_top = int(y1)
-        
         triangle_size = 15
         pt1 = (x_center, y_top - triangle_size - 5)
         pt2 = (x_center - triangle_size, y_top - 5)
         pt3 = (x_center + triangle_size, y_top - 5)
-        
         triangle_points = np.array([pt1, pt2, pt3], np.int32)
         cv2.fillPoly(frame, [triangle_points], color)
         cv2.polylines(frame, [triangle_points], True, (255, 255, 255), 2)
     except Exception as e:
         print(f"⚠️ draw_triangle_for_ball error: {e}")
-    
     return frame
 
-def draw_statistics_panel(frame, speed_estimator, track_class_map):
-    """Draw top speeds panel"""
-    panel_x = width - 350
-    panel_y = 10
-    panel_width = 340
-    panel_height = 200
+def estimate_camera_movement(frame, old_gray, old_features):
+    """Estimate camera movement for current frame"""
+    frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     
-    overlay = frame.copy()
-    cv2.rectangle(overlay, (panel_x, panel_y), 
-                  (panel_x + panel_width, panel_y + panel_height), 
-                  (0, 0, 0), -1)
-    cv2.addWeighted(overlay, 0.7, frame, 0.3, 0, frame)
-    
-    cv2.putText(frame, "TOP SPEEDS", (panel_x + 10, panel_y + 25),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-    
-    player_stats = []
-    for track_id in speed_estimator.player_speeds.keys():
-        stats = speed_estimator.get_player_stats(track_id)
-        if stats and track_id in track_class_map:
-            class_id = track_class_map[track_id]
-            if class_id in [1, 2]:
-                player_stats.append(stats)
-    
-    player_stats.sort(key=lambda x: x['max_speed_kmh'], reverse=True)
-    
-    y_offset = panel_y + 55
-    for i, stats in enumerate(player_stats[:5]):
-        track_id = stats['track_id']
-        max_speed = stats['max_speed_kmh']
-        distance = stats['total_distance_m']
+    if old_features is not None and len(old_features) > 0:
+        new_features, status, _ = cv2.calcOpticalFlowPyrLK(
+            old_gray, frame_gray, old_features, None, **lk_params
+        )
         
-        class_id = track_class_map.get(track_id, 2)
-        color = CLASS_COLORS.get(class_id, (255, 255, 255))
-        
-        text = f"{i+1}. ID{track_id}: {max_speed:.1f} km/h ({distance:.0f}m)"
-        cv2.putText(frame, text, (panel_x + 15, y_offset),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-        y_offset += 30
-    
-    return frame
+        if new_features is not None:
+            max_distance = 0
+            camera_dx, camera_dy = 0, 0
+            
+            for new, old in zip(new_features, old_features):
+                new_pt = new.ravel()
+                old_pt = old.ravel()
+                distance = np.sqrt((new_pt[0] - old_pt[0])**2 + (new_pt[1] - old_pt[1])**2)
+                
+                if distance > max_distance:
+                    max_distance = distance
+                    camera_dx = old_pt[0] - new_pt[0]
+                    camera_dy = old_pt[1] - new_pt[1]
+            
+            if max_distance > 5:
+                mask = np.zeros_like(frame_gray)
+                mask[:, 0:20] = 1
+                mask[:, -20:] = 1
+                new_old_features = cv2.goodFeaturesToTrack(
+                    frame_gray, maxCorners=100, qualityLevel=0.3,
+                    minDistance=3, blockSize=7, mask=mask
+                )
+                return (camera_dx, camera_dy), frame_gray, new_old_features
+            else:
+                return (0, 0), frame_gray, old_features
+        else:
+            return (0, 0), frame_gray, old_features
+    else:
+        return (0, 0), frame_gray, old_features
 
-def draw_camera_movement_info(frame, camera_movement):
-    """Draw camera movement information"""
-    dx, dy = camera_movement
-    info_x, info_y = 10, height - 60
-    
-    overlay = frame.copy()
-    cv2.rectangle(overlay, (info_x, info_y), (info_x + 300, info_y + 50), (0, 0, 0), -1)
-    cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
-    
-    cv2.putText(frame, f"Camera X: {dx:.1f}px", (info_x + 10, info_y + 20),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    cv2.putText(frame, f"Camera Y: {dy:.1f}px", (info_x + 10, info_y + 40),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    
-    return frame
+# === PROCESS VIDEO WITH STREAMING ===
+print("\n🎬 Starting video processing with streaming...")
+cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+frame_idx = 0
+old_gray_stream = old_gray
+old_features_stream = old_features
 
 while True:
     ret, frame = cap.read()
     if not ret:
         break
     
+    # Estimate camera movement for this frame
+    if frame_idx > 0:
+        camera_movement, old_gray_stream, old_features_stream = estimate_camera_movement(
+            frame, old_gray_stream, old_features_stream
+        )
+        camera_movement_per_frame.append(list(camera_movement))
+    
+    camera_dx, camera_dy = camera_movement_per_frame[frame_idx]
+    
+    # Run detection
     frame_small = cv2.resize(frame, (640, 360))
     
     with torch.no_grad():
-        results = model.predict(frame_small, conf=0.4, iou=0.5, device="cuda", 
+        results = model.predict(frame_small, conf=0.4, iou=0.5, device="cuda",
                               half=True, verbose=False)[0]
     
     detections = []
@@ -171,16 +194,10 @@ while True:
             detections.append([[x1, y1, x2-x1, y2-y1], conf, str(cls)])
             detection_data.append({'bbox': [x1, y1, x2, y2], 'cls': cls, 'conf': conf})
     
-    tracks = tracker.update_tracks(detections, frame=frame)
-    
-    # === UPDATE SPEED ESTIMATOR WITH FRAME (for camera movement) ===
-    speed_info = speed_estimator.update(frame_idx, tracks, frame=frame)
-    
-    # Get current camera movement
-    current_camera_movement = speed_estimator.camera_movement[-1] if speed_estimator.camera_movement else (0, 0)
+    tracked_objects = tracker.update_tracks(detections, frame=frame)
     
     # Map track IDs to classes
-    for track in tracks:
+    for track in tracked_objects:
         if not track.is_confirmed():
             continue
         
@@ -196,50 +213,134 @@ while True:
             det_center_x = (det_bbox[0] + det_bbox[2]) / 2
             det_center_y = (det_bbox[1] + det_bbox[3]) / 2
             
-            dist = ((track_center_x - det_center_x)**2 + 
+            dist = ((track_center_x - det_center_x)**2 +
                    (track_center_y - det_center_y)**2)**0.5
             
-            x1 = max(track_bbox[0], det_bbox[0])
-            y1 = max(track_bbox[1], det_bbox[1])
-            x2 = min(track_bbox[2], det_bbox[2])
-            y2 = min(track_bbox[3], det_bbox[3])
-            
-            intersection = max(0, x2 - x1) * max(0, y2 - y1)
-            track_area = (track_bbox[2] - track_bbox[0]) * (track_bbox[3] - track_bbox[1])
-            det_area = (det_bbox[2] - det_bbox[0]) * (det_bbox[3] - det_bbox[1])
-            iou = intersection / (track_area + det_area - intersection + 1e-6)
-            
-            if dist < min_dist and iou > 0.3:
+            if dist < min_dist:
                 min_dist = dist
                 best_cls = det['cls']
         
         track_class_map[track.track_id] = best_cls
-    
-    # Draw tracked objects
-    for track in tracks:
-        if not track.is_confirmed():
-            continue
         
+        # Get track info
         x1, y1, x2, y2 = map(int, track.to_ltrb())
-        track_id = track.track_id
-        cls = track_class_map.get(track_id, 2)
-        color = CLASS_COLORS.get(cls, (255, 180, 120))
+        bbox = [x1, y1, x2, y2]
         
-        draw_ellipse(frame, (x1, y1, x2, y2), color, track_id)
+        # Get foot position
+        foot_x, foot_y = get_foot_position(bbox)
         
-        if track_id in speed_info:
-            draw_speed_overlay(frame, track_id, (x1, y1, x2, y2), 
-                             speed_info[track_id], color)
+        # Adjust for camera movement
+        foot_x_adjusted = foot_x - camera_dx
+        foot_y_adjusted = foot_y - camera_dy
+        
+        # Convert adjusted pixel positions to approximate meters
+        x_meters = pixel_to_meters(foot_x_adjusted)
+        y_meters = pixel_to_meters(foot_y_adjusted)
+        
+        # Determine object category
+        cls = track_class_map[track.track_id]
+        if cls == 1:
+            object_name = "goalkeepers"
+        elif cls == 2:
+            object_name = "players"
+        elif cls == 3:
+            object_name = "referees"
+        else:
+            object_name = "players"
+        
+        # Store track info
+        tracks[object_name][frame_idx][track.track_id] = {
+            'bbox': bbox,
+            'position': (foot_x, foot_y),
+            'position_adjusted': (foot_x_adjusted, foot_y_adjusted),
+            'position_transformed': (x_meters, y_meters)
+        }
     
-    # Draw balls
+    # Store ball detections
     for ball in ball_detections:
-        draw_triangle_for_ball(frame, ball['bbox'], CLASS_COLORS[0])
+        tracks["ball"][frame_idx]["ball"] = {
+            'bbox': ball['bbox'],
+            'position': get_foot_position(ball['bbox']),
+            'position_adjusted': get_foot_position(ball['bbox']),
+            'position_transformed': None
+        }
+    
+    if frame_idx % 100 == 0:
+        print(f"Tracking frame {frame_idx}/{total_frames}")
+    
+    frame_idx += 1
+
+print(f"✅ Tracking complete for {frame_idx} frames")
+
+# === CALCULATE SPEED AND DISTANCE ===
+print("\n⚡ Calculating speed and distance...")
+speed_estimator.add_speed_and_distance_to_tracks(tracks)
+print("✅ Speed and distance calculated")
+
+# === SECOND PASS: RENDER VIDEO WITH OVERLAYS ===
+print("\n🎨 Rendering video with overlays...")
+cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+frame_idx = 0
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+    
+    frame = frame.copy()
+    
+    # Draw tracked players
+    for object_name in ["goalkeepers", "players", "referees"]:
+        if object_name in tracks and frame_idx in tracks[object_name]:
+            for track_id, track_info in tracks[object_name][frame_idx].items():
+                bbox = track_info['bbox']
+                x1, y1, x2, y2 = bbox
+                
+                # Determine color based on class
+                cls = track_class_map.get(track_id, 2)
+                color = CLASS_COLORS.get(cls, (255, 180, 120))
+                
+                # Draw ellipse
+                draw_ellipse(frame, (x1, y1, x2, y2), color, track_id)
+                
+                # Draw speed and distance
+                if 'speed' in track_info and 'distance' in track_info:
+                    speed = track_info['speed']
+                    distance = track_info['distance']
+                    
+                    # Cap speed at realistic values
+                    if speed > 45:
+                        speed = 0
+                    
+                    if speed > 0:
+                        position = list(track_info['position'])
+                        position[1] += 40
+                        position = tuple(map(int, position))
+                        # Use black text for white players, white text for others
+                        text_color = (0, 0, 0) if cls == 2 else (255, 255, 255)
+                        cv2.putText(frame, f"{speed:.1f} km/h", position, cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 2)
+                        cv2.putText(frame, f"{distance:.1f} m",(position[0], position[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 2)
+    
+    # Draw ball
+    if "ball" in tracks and frame_idx in tracks["ball"]:
+        for ball_id, ball_info in tracks["ball"][frame_idx].items():
+            draw_triangle_for_ball(frame, ball_info['bbox'], CLASS_COLORS[0])
     
     # Frame counter
-    overlay_text = f"Frame: {frame_idx}/{total_frames}"
     cv2.rectangle(frame, (10, 10), (400, 50), (0, 0, 0), -1)
-    cv2.putText(frame, overlay_text, (20, 35),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    cv2.putText(frame, f"Frame: {frame_idx}/{total_frames}",
+               (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    
+    # Camera movement info
+    camera_dx, camera_dy = camera_movement_per_frame[frame_idx]
+    info_x, info_y = 10, height - 60
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (info_x, info_y), (info_x + 300, info_y + 50), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
+    cv2.putText(frame, f"Camera X: {camera_dx:.1f}px", (info_x + 10, info_y + 20),
+               cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+    cv2.putText(frame, f"Camera Y: {camera_dy:.1f}px", (info_x + 10, info_y + 40),
+               cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
     
     # Legend
     legend_y = 70
@@ -270,12 +371,12 @@ while True:
             cv2.circle(frame, (30, legend_y), 8, (255, 255, 255), 1)
         
         cv2.putText(frame, label, (50, legend_y + 5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
         legend_y += 30
     
-    # Draw panels
-    frame = draw_statistics_panel(frame, speed_estimator, track_class_map)
-    frame = draw_camera_movement_info(frame, current_camera_movement)
+    # Add "Approximate Mode" indicator
+    cv2.putText(frame, "Pixel Approximation Mode", (width - 300, 30),
+               cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 2)
     
     out.write(frame)
     
@@ -286,7 +387,7 @@ while True:
         break
     
     if frame_idx % 100 == 0:
-        print(f"Processing frame {frame_idx}/{total_frames}")
+        print(f"Rendering frame {frame_idx}/{total_frames}")
     
     frame_idx += 1
 
@@ -294,40 +395,24 @@ cap.release()
 out.release()
 cv2.destroyAllWindows()
 
-# Export statistics
-speed_estimator.export_stats_to_csv(STATS_CSV_PATH, track_class_map)
+# === EXPORT STATISTICS ===
+print("\n📊 Exporting statistics...")
+player_stats = speed_estimator.export_stats_to_csv(tracks, STATS_CSV_PATH, track_class_map)
+
+# Filter out unrealistic speeds from summary
+player_stats_filtered = [s for s in player_stats if s['max_speed_kmh'] <= 45]
 
 print(f"\n✅ Processing complete!")
 print(f"📹 Output video: {OUTPUT_VIDEO_PATH}")
 print(f"📊 Statistics CSV: {STATS_CSV_PATH}")
-print(f"\nClass Distribution:")
-class_counts = {}
-for cls_id, cls_name in [(0, "Ball"), (1, "Goalkeeper"), (2, "Player"), (3, "Referee")]:
-    if cls_id == 0:
-        print(f"  {cls_name}: Detected (no tracking)")
-    else:
-        count = list(track_class_map.values()).count(cls_id)
-        class_counts[cls_name] = count
-        print(f"  {cls_name}: {count} tracks")
+print(f"⚠️ Note: Using pixel-based approximation (not calibrated)")
 
-# Speed summary
-print(f"\n⚽ ADVANCED SPRINT SPEED SUMMARY:")
-speed_summary = []
-for track_id in sorted(speed_estimator.player_speeds.keys()):
-    stats = speed_estimator.get_player_stats(track_id)
-    if stats and track_id in track_class_map:
-        class_id = track_class_map[track_id]
-        class_names = {1: "GK", 2: "Player", 3: "Ref"}
-        class_name = class_names.get(class_id, "Unknown")
-        speed_summary.append({
-            'id': track_id,
-            'class': class_name,
-            'max_speed': stats['max_speed_kmh'],
-            'distance': stats['total_distance_m']
-        })
+# Print summary
+print(f"\n⚽ SPEED SUMMARY (Top 10 - Realistic speeds only):")
+for i, stats in enumerate(player_stats_filtered[:10], 1):
+    print(f"  {i}. ID {stats['track_id']} ({stats['class']}): "
+          f"Max {stats['max_speed_kmh']:.1f} km/h, "
+          f"Distance {stats['total_distance_m']:.1f}m")
 
-speed_summary.sort(key=lambda x: x['max_speed'], reverse=True)
-for i, player in enumerate(speed_summary[:10], 1):
-    print(f"  {i}. ID {player['id']} ({player['class']}): "
-          f"Max {player['max_speed']:.1f} km/h, "
-          f"Distance {player['distance']:.1f}m")
+if len(player_stats) != len(player_stats_filtered):
+    print(f"\n⚠️ Filtered out {len(player_stats) - len(player_stats_filtered)} tracks with unrealistic speeds (>45 km/h)")

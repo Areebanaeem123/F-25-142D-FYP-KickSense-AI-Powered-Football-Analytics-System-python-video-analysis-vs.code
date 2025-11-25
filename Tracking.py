@@ -8,10 +8,10 @@ import csv
 import os
 # === CLASS COLORS ===
 CLASS_COLORS = {
-    0: (120, 200, 50),    # Ball
-    1: (200, 120, 255),   # Goalkeeper
-    2: (255, 180, 120),   # Player
-    3: (150, 150, 255)    # Referee
+    0: (0, 0, 0),         # Ball - BLACK
+    1: (200, 120, 255),   # Goalkeeper - Keep original (Purple/Pink)
+    2: (255, 255, 0),      # Player - WHITE
+    3: (150, 150, 255)    # Referee - Keep original (Light Blue)
 }
 # === YOLO MODEL LOADER ===
 def load_model(model_path):
@@ -33,12 +33,12 @@ def draw_ellipse(frame, bbox, color, track_id=None):
         cv2.ellipse(frame, (x_center, y2), (int(width), int(0.35 * width)),
                     0, -45, 235, color, 2)
         if track_id is not None:
-            rect_w, rect_h = 40, 20
+            rect_w = 30
+            rect_h = 20
             x1r, x2r = x_center - rect_w // 2, x_center + rect_w // 2
             y1r, y2r = (y2 - rect_h // 2) + 15, (y2 + rect_h // 2) + 15
             cv2.rectangle(frame, (x1r, y1r), (x2r, y2r), color, cv2.FILLED)
-            cv2.putText(frame, str(track_id), (x1r + 12, y1r + 15),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            cv2.putText(frame, str(track_id), (x1r + 12, y1r + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 2)
     except Exception as e:
         print(f"⚠️ draw_ellipse error: {e}")
     return frame
