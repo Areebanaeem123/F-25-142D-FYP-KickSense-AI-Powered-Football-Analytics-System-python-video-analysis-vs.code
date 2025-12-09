@@ -7,9 +7,11 @@ from camera_movement_estimator import CameraMovementEstimator
 from speed_and_distance_estimator import SpeedAndDistance_Estimator
 from player_ball_assigner import assign_ball_to_players
 from team_classifier import SiglipTeamClassifier
+from view_transformer import ViewTransformer
+from speed_and_distance_estimator import SpeedAndDistance_Estimator
 
-VIDEO_PATH = "test3.mp4"
-OUTPUT_VIDEO_PATH = "video_results/output_advanced.mp4"
+VIDEO_PATH = "/home/labuser/Desktop/KickSense/input_videos/working_video.mp4"
+OUTPUT_VIDEO_PATH = "video_results/advanced_player_tracking_output.mp4"
 STATS_CSV_PATH = "video_results/player_stats_advanced.csv"
 DISPLAY_SIZE = (900, 600)
 TEAM_COLORS = [
@@ -27,7 +29,7 @@ print("🎯 Running in NO-CALIBRATION mode (pixel-based approximation)")
 print(f"📏 Using conversion: {PIXELS_PER_METER} pixels = 1 meter")
 
 # Initialize models
-model = load_model("best.pt")
+model = load_model("/home/labuser/Downloads/weights/best.pt")
 tracker = create_tracker()
 
 # Require CUDA for inference
@@ -57,8 +59,16 @@ if not ret:
     print("❌ Error: Could not read first frame")
     cap.release()
     exit()
+    
 camera_estimator = CameraMovementEstimator(first_frame)
 print("✅ Camera movement estimator initialized")
+# ... (Around line 60) ...
+speed_estimator = SpeedAndDistance_Estimator(fps=fps, frame_window=5)
+
+# === ADD THIS ===
+print("📐 Initializing View Transformer (Homography)...")
+view_transformer = ViewTransformer()
+# ================
 # === INITIALIZE SPEED AND DISTANCE ESTIMATOR ===
 speed_estimator = SpeedAndDistance_Estimator(fps=fps, frame_window=5)
 # === INITIALIZE TEAM CLASSIFIER (SigLIP embeddings + PCA + KMeans) ===
@@ -309,10 +319,19 @@ while True:
 
 print(f"✅ Tracking complete for {frame_idx} frames")
 
-# === CALCULATE SPEED AND DISTANCE ===
-print("\n⚡ Calculating speed and distance...")
+# === POST-PROCESSING (TRANSFORM & SMOOTH) ===
+print("\n📐 Applying Perspective Transform (Pixels -> Meters)...")
+# 1. Overwrite the approximate positions with accurate Matrix positions
+view_transformer.add_transformed_position_to_tracks(tracks)
+
+print("🌊 Smoothing trajectories to remove jitter...")
+# 2. Smooth the path (Average Filter) so speed doesn't jump around
+speed_estimator.smooth_positions(tracks)
+
+print("⚡ Calculating accurate speed and distance...")
+# 3. Calculate physics based on the new smooth paths
 speed_estimator.add_speed_and_distance_to_tracks(tracks)
-print("✅ Speed and distance calculated")
+print("✅ Physics calculations complete")
 
 # === SECOND PASS: RENDER VIDEO WITH OVERLAYS ===
 print("\n🎨 Rendering video with overlays...")
