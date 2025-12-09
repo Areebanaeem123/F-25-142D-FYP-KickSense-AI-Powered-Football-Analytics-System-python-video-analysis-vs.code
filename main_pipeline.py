@@ -5,11 +5,18 @@ from collections import defaultdict
 from Tracking import load_model, create_tracker, draw_ellipse, CLASS_COLORS
 from camera_movement_estimator import CameraMovementEstimator
 from speed_and_distance_estimator import SpeedAndDistance_Estimator
+from player_ball_assigner import assign_ball_to_players
+from team_classifier import SiglipTeamClassifier
 
-VIDEO_PATH = "/home/labuser/Desktop/KickSense/input_videos/match.mp4"
-OUTPUT_VIDEO_PATH = "/home/labuser/Desktop/KickSense/video_results/output_advanced.mp4"
-STATS_CSV_PATH = "/home/labuser/Desktop/KickSense/video_results/player_stats_advanced.csv"
+VIDEO_PATH = "test3.mp4"
+OUTPUT_VIDEO_PATH = "video_results/output_advanced.mp4"
+STATS_CSV_PATH = "video_results/player_stats_advanced.csv"
 DISPLAY_SIZE = (900, 600)
+TEAM_COLORS = [
+    (0, 255, 255),   # Team 0 - yellow/cyan
+    (255, 140, 0),   # Team 1 - orange
+    (0, 200, 255),   # fallback extra
+]
 
 # Pixel to meter conversion factor (approximate)
 # Standard football field is ~105m long and ~68m wide
@@ -20,9 +27,13 @@ print("🎯 Running in NO-CALIBRATION mode (pixel-based approximation)")
 print(f"📏 Using conversion: {PIXELS_PER_METER} pixels = 1 meter")
 
 # Initialize models
-model = load_model("/home/labuser/Downloads/weights/best.pt")
+model = load_model("best.pt")
 tracker = create_tracker()
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Require CUDA for inference
+if not torch.cuda.is_available():
+    raise RuntimeError("CUDA is required but not available. Check GPU drivers and PyTorch install.")
+device = "cuda"
 
 cap = cv2.VideoCapture(VIDEO_PATH)
 if not cap.isOpened():
@@ -50,6 +61,15 @@ camera_estimator = CameraMovementEstimator(first_frame)
 print("✅ Camera movement estimator initialized")
 # === INITIALIZE SPEED AND DISTANCE ESTIMATOR ===
 speed_estimator = SpeedAndDistance_Estimator(fps=fps, frame_window=5)
+# === INITIALIZE TEAM CLASSIFIER (SigLIP embeddings + PCA + KMeans) ===
+print("🤝 Initializing SigLIP-based team classifier (this may download weights once)...")
+team_classifier = SiglipTeamClassifier(
+    model_name="google/siglip-base-patch16-224",
+    k=2,
+    warmup_frames=40,
+    min_samples=24,
+    pca_components=64,
+)
 # === VIDEO WRITER ===
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out = cv2.VideoWriter(OUTPUT_VIDEO_PATH, fourcc, fps, (width, height))
@@ -171,8 +191,14 @@ while True:
     frame_small = cv2.resize(frame, (640, 360))
     
     with torch.no_grad():
-        results = model.predict(frame_small, conf=0.4, iou=0.5, device="cuda",
-                              half=True, verbose=False)[0]
+        results = model.predict(
+            frame_small,
+            conf=0.4,
+            iou=0.5,
+            device=device,
+            half=True,
+            verbose=False
+        )[0]
     
     detections = []
     detection_data = []
@@ -245,6 +271,8 @@ while True:
             object_name = "players"
         elif cls == 3:
             object_name = "referees"
+            # Ensure referees never carry team assignments even if misclassified earlier
+            team_classifier.track_team.pop(track.track_id, None)
         else:
             object_name = "players"
         
@@ -255,6 +283,12 @@ while True:
             'position_adjusted': (foot_x_adjusted, foot_y_adjusted),
             'position_transformed': (x_meters, y_meters)
         }
+        # Add sample for team classification (players/keepers)
+        if object_name in ["players", "goalkeepers"]:
+            team_classifier.add_sample(frame, bbox, track.track_id)
+            team_id = team_classifier.predict(frame, bbox, track.track_id)
+            if team_id is not None:
+                tracks[object_name][frame_idx][track.track_id]['team_id'] = team_id
     
     # Store ball detections
     for ball in ball_detections:
@@ -264,6 +298,9 @@ while True:
             'position_adjusted': get_foot_position(ball['bbox']),
             'position_transformed': None
         }
+
+    # Assign ball to nearest player/keeper in this frame
+    assign_ball_to_players(tracks, frame_idx, max_distance_pixels=70.0)
     
     if frame_idx % 100 == 0:
         print(f"Tracking frame {frame_idx}/{total_frames}")
@@ -302,6 +339,23 @@ while True:
                 
                 # Draw ellipse
                 draw_ellipse(frame, (x1, y1, x2, y2), color, track_id)
+
+                # Team label overlay
+                team_id = track_info.get('team_id')
+                if team_id is not None:
+                    team_color = TEAM_COLORS[team_id % len(TEAM_COLORS)]
+                    label = f"T{team_id + 1}"
+                    label_bg = (x1, max(0, y1 - 18))
+                    cv2.rectangle(frame, label_bg, (label_bg[0] + 30, label_bg[1] + 18), team_color, -1)
+                    cv2.putText(frame, label, (label_bg[0] + 4, label_bg[1] + 13),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+
+                # Highlight player with ball
+                if track_info.get('has_ball'):
+                    indicator_pos = (x1 + 12, max(10, y1 - 12))
+                    cv2.circle(frame, indicator_pos, 10, (0, 165, 255), -1)
+                    cv2.putText(frame, "BALL", (indicator_pos[0] - 15, indicator_pos[1] - 15),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 2)
                 
                 # Draw speed and distance
                 if 'speed' in track_info and 'distance' in track_info:

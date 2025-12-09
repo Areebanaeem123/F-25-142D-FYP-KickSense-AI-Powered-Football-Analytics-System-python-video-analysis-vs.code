@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 import csv
@@ -157,6 +158,10 @@ class SpeedAndDistance_Estimator():
                     })
         
         # Write to CSV
+        output_dir = os.path.dirname(output_path)
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+
         with open(output_path, 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['Track_ID', 'Class', 'Max_Speed_kmh', 'Avg_Speed_kmh',
