@@ -9,6 +9,8 @@ from player_ball_assigner import assign_ball_to_players
 from team_classifier import SiglipTeamClassifier
 from view_transformer import ViewTransformer
 from speed_and_distance_estimator import SpeedAndDistance_Estimator
+from db_connect import KicksenseDB
+from datetime import datetime, timedelta
 
 VIDEO_PATH = "/home/labuser/Desktop/KickSense/input_videos/working_video.mp4"
 OUTPUT_VIDEO_PATH = "video_results/advanced_player_tracking_output.mp4"
@@ -468,17 +470,92 @@ cap.release()
 out.release()
 cv2.destroyAllWindows()
 
-# === EXPORT STATISTICS ===
-print("\n📊 Exporting statistics...")
+# ... [Previous code remains the same] ...
+
+# === EXPORT STATISTICS (CSV) ===
+print("\n📊 Exporting statistics to CSV...")
 player_stats = speed_estimator.export_stats_to_csv(tracks, STATS_CSV_PATH, track_class_map)
 
-# Filter out unrealistic speeds from summary
+# =========================================================
+# === NEW: SAVE TO TIMESCALEDB (DOCKER) ===
+# =========================================================
+print("\n💾 Saving smoothed data to TimescaleDB (Docker)...")
+
+try:
+    # 1. Connect to Database
+    # Ensure these credentials match your docker-compose.yml
+    db_config = {
+        "dbname": "kicksense",
+        "user": "postgres",
+        "password": "password123",
+        "host": "localhost",
+        "port": "5432"
+    }
+    db = KicksenseDB(db_config)
+    
+    # 2. Iterate through frames chronologically
+    # We use sorted keys to ensure time increases linearly
+    sorted_frames = sorted(tracks["players"].keys())
+    
+    # Start time reference for timestamp calculation
+    match_start_time = datetime.now() 
+
+    for frame_idx in sorted_frames:
+        # Calculate Timestamp: Start + (Frame Number * Seconds per Frame)
+        timestamp = match_start_time + timedelta(seconds=frame_idx / fps)
+        
+        current_batch = []
+        
+        # Get player data for this frame
+        for track_id, info in tracks["players"][frame_idx].items():
+            
+            # Validation: Only save if we have both Position (Meters) and Speed
+            if "position_transformed" in info and "speed" in info:
+                
+                # Get Position (Meters)
+                pos = info["position_transformed"]
+                if pos is None: continue
+                
+                # Get Speed (Convert km/h -> m/s for standard DB units)
+                speed_kmh = info["speed"]
+                speed_ms = speed_kmh / 3.6
+                
+                # Get Team (Default to 0 if unknown)
+                team_id = info.get("team_id", 0)
+                
+                # Append to batch: (track_id, team_id, x, y, speed_ms, is_sprinting)
+                current_batch.append((
+                    track_id,
+                    team_id,
+                    pos[0],           # X (Meters)
+                    pos[1],           # Y (Meters)
+                    speed_ms,         # Speed (m/s)
+                    speed_kmh > 25.0  # is_sprinting (Threshold: 25 km/h)
+                ))
+        
+        # Send this frame's batch to the DB Helper
+        # Match ID is hardcoded to 1 for this demo
+        if current_batch:
+            db.add_frame_data(timestamp, current_batch, match_id=1)
+
+    # 3. Final Flush & Close
+    db.close()
+    print("✅ Data successfully saved to Docker Database!")
+
+except Exception as e:
+    print(f"⚠️ Database Error: {e}")
+    print("Continuing without saving to DB...")
+
+# =========================================================
+# === END DATABASE SECTION ===
+# =========================================================
+
+# Filter out unrealistic speeds from summary (For Console Output)
 player_stats_filtered = [s for s in player_stats if s['max_speed_kmh'] <= 45]
 
 print(f"\n✅ Processing complete!")
 print(f"📹 Output video: {OUTPUT_VIDEO_PATH}")
 print(f"📊 Statistics CSV: {STATS_CSV_PATH}")
-print(f"⚠️ Note: Using pixel-based approximation (not calibrated)")
 
 # Print summary
 print(f"\n⚽ SPEED SUMMARY (Top 10 - Realistic speeds only):")
