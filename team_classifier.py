@@ -26,175 +26,208 @@ def _torso_crop(frame: np.ndarray, bbox: Tuple[int, int, int, int], padding: int
     return crop
 
 
-class TeamClassifier:
-    """
-    Lightweight team assignment using jersey color clustering.
-    Collects color features over warmup frames, then clusters into K teams.
-    """
-
-    def __init__(self, k: int = 2, warmup_frames: int = 80, min_samples: int = 30, random_state: int = 42):
-        self.k = k
-        self.warmup_frames = warmup_frames
-        self.min_samples = min_samples
-        self.features = []
-        self.track_ids = []
-        self.kmeans: Optional[KMeans] = None
-        self.track_team: Dict[int, int] = {}
-        self.frame_count = 0
-
-    def add_sample(self, frame: np.ndarray, bbox: Tuple[int, int, int, int], track_id: int):
-        """Add a jersey color sample for a track."""
-        self.frame_count += 1
-        feat = _crop_and_feature(frame, bbox)
-        if feat is None:
-            return
-        self.features.append(feat)
-        self.track_ids.append(track_id)
-
-        if self.kmeans is None and len(self.features) >= self.min_samples and self.frame_count >= self.warmup_frames:
-            self._fit()
-
-    def _fit(self):
-        self.kmeans = KMeans(n_clusters=self.k, random_state=42, n_init="auto")
-        self.kmeans.fit(np.array(self.features))
-        # Assign historical samples
-        labels = self.kmeans.labels_
-        for track_id, lbl in zip(self.track_ids, labels):
-            if track_id not in self.track_team:
-                self.track_team[track_id] = int(lbl)
-
-    def predict(self, frame: np.ndarray, bbox: Tuple[int, int, int, int], track_id: int) -> Optional[int]:
-        """Predict team id for a single bbox; updates map."""
-        if self.kmeans is None:
-            return self.track_team.get(track_id)
-
-        feat = _crop_and_feature(frame, bbox)
-        if feat is None:
-            return self.track_team.get(track_id)
-
-        lbl = int(self.kmeans.predict([feat])[0])
-        self.track_team[track_id] = lbl
-        return lbl
-
-    def get_team(self, track_id: int) -> Optional[int]:
-        return self.track_team.get(track_id)
-
-    def cluster_ready(self) -> bool:
-        return self.kmeans is not None
+def _crop_and_feature(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> Optional[np.ndarray]:
+    """Extract a simple color feature from the upper torso region."""
+    crop = _torso_crop(frame, bbox, padding=4)
+    if crop is None:
+        return None
+    # Resize to reduce noise, then average RGB color
+    resized = cv2.resize(crop, (16, 16), interpolation=cv2.INTER_AREA)
+    rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+    mean_color = rgb.reshape(-1, 3).mean(axis=0)
+    return mean_color
 
 
-class SiglipTeamClassifier:
-    """
-    Team assignment using SigLIP image embeddings + PCA + KMeans.
-    - Warmup: collect embeddings for some frames/samples
-    - Reduce dimensionality with PCA for speed/stability
-    - Cluster into k teams using KMeans
-    """
+# --- Lightweight color-based classifier (procedural) ---
 
-    def __init__(
-        self,
-        model_name: str = "google/siglip-base-patch16-224",
-        k: int = 2,
-        warmup_frames: int = 25,
-        min_samples: int = 16,
-        pca_components: int = 40,
-        random_state: int = 42,
-        device: Optional[str] = None,
-    ):
-        self.k = k
-        self.warmup_frames = warmup_frames
-        self.min_samples = min_samples
-        self.pca_components = pca_components
-        self.random_state = random_state
-        self.features = []
-        self.track_ids = []
-        self.track_history: Dict[int, List[int]] = {}
-        self.kmeans: Optional[KMeans] = None
-        self.pca: Optional[PCA] = None
-        self.track_team: Dict[int, int] = {}
-        self.frame_count = 0
+def create_team_classifier_state(
+    k: int = 2,
+    warmup_frames: int = 80,
+    min_samples: int = 30,
+    random_state: int = 42,
+) -> Dict:
+    """Create mutable state for the color-based team classifier."""
+    return {
+        "k": k,
+        "warmup_frames": warmup_frames,
+        "min_samples": min_samples,
+        "features": [],
+        "track_ids": [],
+        "kmeans": None,
+        "track_team": {},
+        "frame_count": 0,
+        "random_state": random_state,
+    }
 
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"[Team/SigLIP] Loading model '{model_name}' on {self.device}...")
-        self.processor = AutoProcessor.from_pretrained(model_name, use_fast=True)
-        self.model = SiglipModel.from_pretrained(model_name).to(self.device)
-        self.model.eval()
-        print("[Team/SigLIP] Model ready.")
 
-    def _prepare_input(self, crop: np.ndarray):
-        rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
-        return self.processor(images=rgb, return_tensors="pt").to(self.device)
+def _fit_team_classifier(state: Dict) -> None:
+    state["kmeans"] = KMeans(
+        n_clusters=state["k"],
+        random_state=state["random_state"],
+        n_init="auto",
+    )
+    state["kmeans"].fit(np.array(state["features"]))
+    labels = state["kmeans"].labels_
+    for track_id, lbl in zip(state["track_ids"], labels):
+        if track_id not in state["track_team"]:
+            state["track_team"][track_id] = int(lbl)
 
-    def _extract_embedding(self, frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> Optional[np.ndarray]:
-        crop = _torso_crop(frame, bbox, padding=4)
-        if crop is None:
-            return None
-        inputs = self._prepare_input(crop)
-        with torch.no_grad():
-            out = self.model.get_image_features(**inputs)
-        emb = out.cpu().numpy().flatten()
-        # L2 normalize for cosine-like separation
-        norm = np.linalg.norm(emb)
-        if norm > 0:
-            emb = emb / norm
-        return emb
 
-    def add_sample(self, frame: np.ndarray, bbox: Tuple[int, int, int, int], track_id: int):
-        self.frame_count += 1
-        emb = self._extract_embedding(frame, bbox)
-        if emb is None:
-            return
-        # KMeans expects float64; enforce dtype to avoid buffer mismatch errors
-        emb = emb.astype(np.float64, copy=False)
-        self.features.append(emb)
-        self.track_ids.append(track_id)
+def add_team_sample(state: Dict, frame: np.ndarray, bbox: Tuple[int, int, int, int], track_id: int) -> None:
+    """Add a jersey color sample for a track."""
+    state["frame_count"] += 1
+    feat = _crop_and_feature(frame, bbox)
+    if feat is None:
+        return
+    state["features"].append(feat)
+    state["track_ids"].append(track_id)
+    ready_for_fit = (
+        state["kmeans"] is None
+        and len(state["features"]) >= state["min_samples"]
+        and state["frame_count"] >= state["warmup_frames"]
+    )
+    if ready_for_fit:
+        _fit_team_classifier(state)
 
-        if self.kmeans is None and len(self.features) >= self.min_samples and self.frame_count >= self.warmup_frames:
-            self._fit()
 
-    def _fit(self):
-        # Enforce float64 for sklearn compatibility
-        feats = np.array(self.features, dtype=np.float64)
-        n_components = min(self.pca_components, feats.shape[0], feats.shape[1])
-        print(f"[Team/SigLIP] Fitting PCA with {n_components} components on {feats.shape[0]} samples...")
-        self.pca = PCA(n_components=n_components, random_state=self.random_state)
-        reduced = self.pca.fit_transform(feats)
-        print(f"[Team/SigLIP] Fitting KMeans (k={self.k})...")
-        self.kmeans = KMeans(n_clusters=self.k, random_state=self.random_state, n_init="auto")
-        self.kmeans.fit(reduced)
-        labels = self.kmeans.labels_
-        for track_id, lbl in zip(self.track_ids, labels):
-            if track_id not in self.track_team:
-                self.track_team[track_id] = int(lbl)
-        print("[Team/SigLIP] Clustering ready.")
+def predict_team(state: Dict, frame: np.ndarray, bbox: Tuple[int, int, int, int], track_id: int) -> Optional[int]:
+    """Predict team id for a single bbox and update the mapping."""
+    if state["kmeans"] is None:
+        return state["track_team"].get(track_id)
+    feat = _crop_and_feature(frame, bbox)
+    if feat is None:
+        return state["track_team"].get(track_id)
+    lbl = int(state["kmeans"].predict([feat])[0])
+    state["track_team"][track_id] = lbl
+    return lbl
 
-    def predict(self, frame: np.ndarray, bbox: Tuple[int, int, int, int], track_id: int, smooth_window: int = 8) -> Optional[int]:
-        if self.kmeans is None or self.pca is None:
-            return self.track_team.get(track_id)
 
-        emb = self._extract_embedding(frame, bbox)
-        if emb is None:
-            return self.track_team.get(track_id)
+def get_team(state: Dict, track_id: int) -> Optional[int]:
+    return state["track_team"].get(track_id)
 
-        # Keep float64 through the pipeline to avoid dtype mismatch in sklearn
-        emb = emb.astype(np.float64, copy=False)
-        reduced = self.pca.transform([emb]).astype(np.float64, copy=False)
-        lbl = int(self.kmeans.predict(reduced)[0])
 
-        # Temporal smoothing via majority vote over recent assignments
-        hist = self.track_history.setdefault(track_id, [])
-        hist.append(lbl)
-        if len(hist) > smooth_window:
-            hist.pop(0)
-        counts = np.bincount(np.array(hist), minlength=self.k)
-        smoothed = int(np.argmax(counts))
+def team_cluster_ready(state: Dict) -> bool:
+    return state["kmeans"] is not None
 
-        self.track_team[track_id] = smoothed
-        return smoothed
 
-    def get_team(self, track_id: int) -> Optional[int]:
-        return self.track_team.get(track_id)
+# --- SigLIP-based classifier (procedural) ---
 
-    def cluster_ready(self) -> bool:
-        return self.kmeans is not None
+def create_siglip_classifier_state(
+    model_name: str = "google/siglip-base-patch16-224",
+    k: int = 2,
+    warmup_frames: int = 25,
+    min_samples: int = 16,
+    pca_components: int = 40,
+    random_state: int = 42,
+    device: Optional[str] = None,
+) -> Dict:
+    """Create mutable state for the SigLIP-based team classifier."""
+    resolved_device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"[Team/SigLIP] Loading model '{model_name}' on {resolved_device}...")
+    processor = AutoProcessor.from_pretrained(model_name, use_fast=True)
+    model = SiglipModel.from_pretrained(model_name).to(resolved_device)
+    model.eval()
+    print("[Team/SigLIP] Model ready.")
+    return {
+        "k": k,
+        "warmup_frames": warmup_frames,
+        "min_samples": min_samples,
+        "pca_components": pca_components,
+        "random_state": random_state,
+        "features": [],
+        "track_ids": [],
+        "track_history": {},
+        "kmeans": None,
+        "pca": None,
+        "track_team": {},
+        "frame_count": 0,
+        "device": resolved_device,
+        "processor": processor,
+        "model": model,
+    }
+
+
+def _prepare_siglip_input(state: Dict, crop: np.ndarray):
+    rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+    return state["processor"](images=rgb, return_tensors="pt").to(state["device"])
+
+
+def _extract_siglip_embedding(state: Dict, frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> Optional[np.ndarray]:
+    crop = _torso_crop(frame, bbox, padding=4)
+    if crop is None:
+        return None
+    inputs = _prepare_siglip_input(state, crop)
+    with torch.no_grad():
+        out = state["model"].get_image_features(**inputs)
+    emb = out.cpu().numpy().flatten()
+    norm = np.linalg.norm(emb)
+    if norm > 0:
+        emb = emb / norm
+    return emb
+
+
+def add_siglip_sample(state: Dict, frame: np.ndarray, bbox: Tuple[int, int, int, int], track_id: int) -> None:
+    state["frame_count"] += 1
+    emb = _extract_siglip_embedding(state, frame, bbox)
+    if emb is None:
+        return
+    emb = emb.astype(np.float64, copy=False)
+    state["features"].append(emb)
+    state["track_ids"].append(track_id)
+    ready_for_fit = (
+        state["kmeans"] is None
+        and len(state["features"]) >= state["min_samples"]
+        and state["frame_count"] >= state["warmup_frames"]
+    )
+    if ready_for_fit:
+        _fit_siglip_classifier(state)
+
+
+def _fit_siglip_classifier(state: Dict) -> None:
+    feats = np.array(state["features"], dtype=np.float64)
+    n_components = min(state["pca_components"], feats.shape[0], feats.shape[1])
+    print(f"[Team/SigLIP] Fitting PCA with {n_components} components on {feats.shape[0]} samples...")
+    state["pca"] = PCA(n_components=n_components, random_state=state["random_state"])
+    reduced = state["pca"].fit_transform(feats)
+    print(f"[Team/SigLIP] Fitting KMeans (k={state['k']})...")
+    state["kmeans"] = KMeans(n_clusters=state["k"], random_state=state["random_state"], n_init="auto")
+    state["kmeans"].fit(reduced)
+    labels = state["kmeans"].labels_
+    for track_id, lbl in zip(state["track_ids"], labels):
+        if track_id not in state["track_team"]:
+            state["track_team"][track_id] = int(lbl)
+    print("[Team/SigLIP] Clustering ready.")
+
+
+def predict_siglip_team(
+    state: Dict,
+    frame: np.ndarray,
+    bbox: Tuple[int, int, int, int],
+    track_id: int,
+    smooth_window: int = 8,
+) -> Optional[int]:
+    if state["kmeans"] is None or state["pca"] is None:
+        return state["track_team"].get(track_id)
+    emb = _extract_siglip_embedding(state, frame, bbox)
+    if emb is None:
+        return state["track_team"].get(track_id)
+    emb = emb.astype(np.float64, copy=False)
+    reduced = state["pca"].transform([emb]).astype(np.float64, copy=False)
+    lbl = int(state["kmeans"].predict(reduced)[0])
+    hist = state["track_history"].setdefault(track_id, [])
+    hist.append(lbl)
+    if len(hist) > smooth_window:
+        hist.pop(0)
+    counts = np.bincount(np.array(hist), minlength=state["k"])
+    smoothed = int(np.argmax(counts))
+    state["track_team"][track_id] = smoothed
+    return smoothed
+
+
+def get_siglip_team(state: Dict, track_id: int) -> Optional[int]:
+    return state["track_team"].get(track_id)
+
+
+def siglip_cluster_ready(state: Dict) -> bool:
+    return state["kmeans"] is not None
 
