@@ -3,7 +3,6 @@ import torch
 import numpy as np
 from collections import defaultdict
 from Tracking import load_model, create_tracker, draw_ellipse, CLASS_COLORS
-from camera_movement_estimator import CameraMovementEstimator
 from speed_and_distance_estimator import SpeedAndDistance_Estimator
 from player_ball_assigner import assign_ball_to_players
 from team_classifier import SiglipTeamClassifier
@@ -57,7 +56,6 @@ if not ret:
     print("❌ Error: Could not read first frame")
     cap.release()
     exit()
-camera_estimator = CameraMovementEstimator(first_frame)
 print("✅ Camera movement estimator initialized")
 # === INITIALIZE SPEED AND DISTANCE ESTIMATOR ===
 speed_estimator = SpeedAndDistance_Estimator(fps=fps, frame_window=5)
