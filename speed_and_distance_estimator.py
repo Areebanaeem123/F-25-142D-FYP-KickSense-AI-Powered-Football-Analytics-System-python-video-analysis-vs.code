@@ -3,175 +3,252 @@ import numpy as np
 import os
 import csv
 
-class SpeedAndDistance_Estimator():
+# ============================================================
+# 📐 CONSTANTS – REAL WORLD CENTER CIRCLE (meters)
+# ============================================================
+
+CENTER_CIRCLE_RADIUS = 9.15  # meters
+
+REAL_WORLD_POINTS = np.array([
+    [-CENTER_CIRCLE_RADIUS,  0.0],   # left
+    [ CENTER_CIRCLE_RADIUS,  0.0],   # right
+    [ 0.0, -CENTER_CIRCLE_RADIUS],   # bottom
+    [ 0.0,  CENTER_CIRCLE_RADIUS],   # top
+], dtype=np.float32)
+
+
+# ============================================================
+# 🧱 STEP 1: KEYFRAME HOMOGRAPHY MANAGER
+# ============================================================
+
+class KeyframeHomography:
+    """
+    Handles:
+    - Storing homography matrices at keyframes
+    - Interpolating homographies between frames
+    - Transforming pixel points → real-world meters
+    """
+
+    def __init__(self):
+        self.keyframes = {}  # frame_idx -> 3x3 homography matrix
+
+    def add_keyframe(self, frame_idx, image_points):
+        """
+        image_points: list of 4 pixel points
+        Order MUST be: [left, right, bottom, top]
+        """
+        image_points = np.array(image_points, dtype=np.float32)
+
+        H, _ = cv2.findHomography(image_points, REAL_WORLD_POINTS)
+        self.keyframes[frame_idx] = H
+
+    def get_homography(self, frame_idx):
+        keys = sorted(self.keyframes.keys())
+
+        if frame_idx <= keys[0]:
+            return self.keyframes[keys[0]]
+
+        if frame_idx >= keys[-1]:
+            return self.keyframes[keys[-1]]
+
+        for i in range(len(keys) - 1):
+            f1, f2 = keys[i], keys[i + 1]
+            if f1 <= frame_idx <= f2:
+                alpha = (frame_idx - f1) / (f2 - f1)
+                return (1 - alpha) * self.keyframes[f1] + alpha * self.keyframes[f2]
+
+    def transform_point(self, point, frame_idx):
+        """
+        Convert pixel [x, y] → real-world [X, Y] in meters
+        """
+        H = self.get_homography(frame_idx)
+        p = np.array([[point[0], point[1], 1.0]])
+        mapped = H @ p.T
+        mapped /= mapped[2]
+        return [mapped[0][0], mapped[1][0]]
+
+
+# ============================================================
+# 🧩 STEP 2: APPLY HOMOGRAPHY TO TRACKS
+# ============================================================
+
+def apply_homography_to_tracks(tracks, homography_manager):
+    """
+    Adds 'position_transformed' (meters) to each track
+    """
+    for object_name, object_tracks in tracks.items():
+        if object_name in ["ball", "referees"]:
+            continue
+
+        for frame_idx, frame_data in object_tracks.items():
+            for track_id, track_info in frame_data.items():
+                if "position" not in track_info:
+                    continue
+
+                pixel_pos = track_info["position"]  # [x, y]
+                real_pos = homography_manager.transform_point(pixel_pos, frame_idx)
+                track_info["position_transformed"] = real_pos
+
+
+# ============================================================
+# 🧮 STEP 3: SPEED & DISTANCE ESTIMATOR
+# ============================================================
+
+class SpeedAndDistance_Estimator:
     def __init__(self, fps=30, frame_window=5):
         self.frame_window = frame_window
         self.frame_rate = fps
 
     def _measure_distance(self, p1, p2):
         """Euclidean distance in meters"""
-        return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)**0.5
+        return ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5
+
+    # --------------------------------------------------------
+    # ✨ Smoothing
+    # --------------------------------------------------------
 
     def smooth_positions(self, tracks):
-        """
-        Apply a Moving Average Filter to all trajectories to remove noise/jitter.
-        Must be run BEFORE calculating speed.
-        """
         for object_name, object_tracks in tracks.items():
-            if object_name == "ball" or object_name == "referees":
+            if object_name in ["ball", "referees"]:
                 continue
 
-            # 1. Extract raw trajectories per player
-            # Format: {track_id: [ [frame_num, x, y], ... ]}
             trajectory_data = {}
-            
-            # --- FIX: Iterate over dictionary items, not enumerate() ---
+
             for frame_num, frame_data in object_tracks.items():
                 for track_id, track_info in frame_data.items():
-                    if "position_transformed" not in track_info or track_info["position_transformed"] is None:
+                    pos = track_info.get("position_transformed")
+                    if pos is None:
                         continue
-                        
-                    if track_id not in trajectory_data:
-                        trajectory_data[track_id] = []
-                    
-                    pos = track_info["position_transformed"]
+
+                    trajectory_data.setdefault(track_id, [])
                     trajectory_data[track_id].append([frame_num, pos[0], pos[1]])
 
-            # 2. Smooth and Write Back
             for track_id, positions in trajectory_data.items():
-                if len(positions) < 5: continue # Need minimum data to smooth
-                
-                positions_np = np.array(positions)
-                
-                # Apply Moving Average (Window size 5) on X and Y columns
-                window_size = 5
-                kernel = np.ones(window_size) / window_size
-                
-                # 'same' mode keeps array size same
-                positions_np[:, 1] = np.convolve(positions_np[:, 1], kernel, mode='same') # Smooth X
-                positions_np[:, 2] = np.convolve(positions_np[:, 2], kernel, mode='same') # Smooth Y
+                if len(positions) < 5:
+                    continue
 
-                # 3. Update the original 'tracks' dictionary with smoothed values
+                positions_np = np.array(positions)
+                kernel = np.ones(5) / 5
+
+                positions_np[:, 1] = np.convolve(positions_np[:, 1], kernel, mode="same")
+                positions_np[:, 2] = np.convolve(positions_np[:, 2], kernel, mode="same")
+
                 for row in positions_np:
-                    f_num, sm_x, sm_y = int(row[0]), row[1], row[2]
-                    # Ensure the frame exists in the dict before writing
-                    if f_num in tracks[object_name] and track_id in tracks[object_name][f_num]:
-                        tracks[object_name][f_num][track_id]['position_transformed'] = [sm_x, sm_y]
+                    f, x, y = int(row[0]), row[1], row[2]
+                    if f in object_tracks and track_id in object_tracks[f]:
+                        object_tracks[f][track_id]["position_transformed"] = [x, y]
+
+    # --------------------------------------------------------
+    # 🚀 Speed & Distance
+    # --------------------------------------------------------
 
     def add_speed_and_distance_to_tracks(self, tracks):
-        """
-        Calculate speed/distance using the (now smoothed) real-world coordinates.
-        """
         total_distance = {}
-        
-        for object_name, object_tracks in tracks.items():
-            if object_name == "ball" or object_name == "referees":
-                continue
-            
-            # Get sorted frame numbers to iterate chronologically
-            frame_nums = sorted(list(object_tracks.keys()))
-            number_of_frames = len(frame_nums)
-            
-            # --- FIX: Iterate using the sorted frame keys ---
-            for i in range(0, number_of_frames, self.frame_window):
-                current_frame_idx = frame_nums[i]
-                
-                # Determine the index of the comparison frame
-                last_i = min(i + self.frame_window, number_of_frames - 1)
-                last_frame_idx = frame_nums[last_i]
-                
-                for track_id, _ in object_tracks[current_frame_idx].items():
-                    # Check if player exists in the future frame
-                    if track_id not in object_tracks[last_frame_idx]:
-                        continue
-                    
-                    start_position = object_tracks[current_frame_idx][track_id].get('position_transformed')
-                    end_position = object_tracks[last_frame_idx][track_id].get('position_transformed')
-                    
-                    if start_position is None or end_position is None:
-                        continue
-                    
-                    distance_covered = self._measure_distance(start_position, end_position)
-                    
-                    # Calculate real time elapsed between these specific frames
-                    time_elapsed = (last_frame_idx - current_frame_idx) / self.frame_rate
-                    
-                    if time_elapsed == 0: continue
-                    
-                    speed_meters_per_second = distance_covered / time_elapsed
-                    speed_km_per_hour = speed_meters_per_second * 3.6
-                    
-                    # Sanity Check: Cap speed at 40 km/h
-                    if speed_km_per_hour > 40:
-                        speed_km_per_hour = 0
-                        distance_covered = 0
-                    
-                    if object_name not in total_distance: total_distance[object_name] = {}
-                    if track_id not in total_distance[object_name]: total_distance[object_name][track_id] = 0
-                    total_distance[object_name][track_id] += distance_covered
-                    
-                    # Tag all frames in this batch with the calculated stats
-                    for j in range(i, last_i):
-                        batch_frame_idx = frame_nums[j]
-                        if track_id in tracks[object_name][batch_frame_idx]:
-                            tracks[object_name][batch_frame_idx][track_id]['speed'] = speed_km_per_hour
-                            tracks[object_name][batch_frame_idx][track_id]['distance'] = total_distance[object_name][track_id]
 
+        for object_name, object_tracks in tracks.items():
+            if object_name in ["ball", "referees"]:
+                continue
+
+            frame_nums = sorted(object_tracks.keys())
+
+            for i in range(0, len(frame_nums), self.frame_window):
+                f_start = frame_nums[i]
+                f_end = frame_nums[min(i + self.frame_window, len(frame_nums) - 1)]
+
+                for track_id in object_tracks[f_start]:
+                    if track_id not in object_tracks[f_end]:
+                        continue
+
+                    p1 = object_tracks[f_start][track_id].get("position_transformed")
+                    p2 = object_tracks[f_end][track_id].get("position_transformed")
+
+                    if p1 is None or p2 is None:
+                        continue
+
+                    dist = self._measure_distance(p1, p2)
+                    time = (f_end - f_start) / self.frame_rate
+                    if time == 0:
+                        continue
+
+                    speed_kmh = (dist / time) * 3.6
+
+                    if speed_kmh > 40:  # sanity cap
+                        speed_kmh = 0
+                        dist = 0
+
+                    total_distance.setdefault(object_name, {})
+                    total_distance[object_name].setdefault(track_id, 0)
+                    total_distance[object_name][track_id] += dist
+
+                    for j in range(i, min(i + self.frame_window, len(frame_nums))):
+                        f = frame_nums[j]
+                        if track_id in object_tracks[f]:
+                            object_tracks[f][track_id]["speed"] = speed_kmh
+                            object_tracks[f][track_id]["distance"] = total_distance[object_name][track_id]
+
+    # --------------------------------------------------------
+    # 📤 CSV Export
+    # --------------------------------------------------------
     def export_stats_to_csv(self, tracks, output_path, track_class_map=None):
-        """Export player statistics to CSV"""
-        # ... (Your existing export code works fine, but keeping it here for completeness)
+        """
+        Export player statistics to CSV.
+        Includes all tracked players, even if speed/distance is zero.
+        """
+        import os
+        import csv
+
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
         class_names = {0: "Ball", 1: "Goalkeeper", 2: "Player", 3: "Referee"}
         player_stats = []
-        
+
         for object_name, object_tracks in tracks.items():
-            if object_name == "ball" or object_name == "referees":
+            if object_name in ["ball", "referees"]:
                 continue
-            
-            # Get unique track IDs
+
+            # Collect all unique track IDs
             track_ids = set()
-            for frame_idx, frame_tracks in object_tracks.items():
-                track_ids.update(frame_tracks.keys())
-            
-            for track_id in track_ids:
-                max_speed = 0
+            for frame_data in object_tracks.values():
+                track_ids.update(frame_data.keys())
+
+            for tid in track_ids:
+                speeds = []
                 total_distance = 0
-                speed_sum = 0
-                speed_count = 0
-                
-                for frame_idx, frame_tracks in object_tracks.items():
-                    if track_id in frame_tracks:
-                        track_info = frame_tracks[track_id]
-                        if 'speed' in track_info:
-                            s = track_info['speed']
-                            max_speed = max(max_speed, s)
-                            speed_sum += s
-                            speed_count += 1
-                        if 'distance' in track_info:
-                            total_distance = max(total_distance, track_info['distance'])
-                
-                if speed_count > 0:
-                    avg_speed = speed_sum / speed_count
-                    class_id = track_class_map.get(track_id, 2) if track_class_map else 2
-                    
-                    player_stats.append({
-                        'track_id': track_id,
-                        'class': class_names.get(class_id, "Unknown"),
-                        'max_speed_kmh': max_speed,
-                        'avg_speed_kmh': avg_speed,
-                        'total_distance_m': total_distance,
-                        'sprint_count': 0 # Simplified
-                    })
-        
-        # Write to CSV
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, 'w', newline='') as f:
+
+                for frame_data in object_tracks.values():
+                    if tid in frame_data:
+                        track_info = frame_data[tid]
+                        if "speed" in track_info:
+                            speeds.append(track_info["speed"])
+                        if "distance" in track_info:
+                            total_distance = max(total_distance, track_info["distance"])
+
+                # Determine player class
+                class_id = track_class_map.get(tid, 2) if track_class_map else 2
+                class_name = class_names.get(class_id, "Unknown")
+
+                # Append stats (even if no speed)
+                player_stats.append({
+                    "track_id": tid,
+                    "class": class_name,
+                    "max_speed_kmh": max(speeds) if speeds else 0.0,
+                    "avg_speed_kmh": sum(speeds)/len(speeds) if speeds else 0.0,
+                    "total_distance_m": total_distance
+                })
+
+        # Write CSV
+        with open(output_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(['Track_ID', 'Class', 'Max_Speed_kmh', 'Avg_Speed_kmh', 'Total_Distance_m'])
+            writer.writerow(["Track_ID", "Class", "Max_Speed_kmh", "Avg_Speed_kmh", "Total_Distance_m"])
             for stats in player_stats:
                 writer.writerow([
-                    stats['track_id'], stats['class'], 
-                    f"{stats['max_speed_kmh']:.2f}", 
-                    f"{stats['avg_speed_kmh']:.2f}", 
+                    stats["track_id"],
+                    stats["class"],
+                    f"{stats['max_speed_kmh']:.2f}",
+                    f"{stats['avg_speed_kmh']:.2f}",
                     f"{stats['total_distance_m']:.2f}"
                 ])
+
+        print(f"✅ Player statistics saved ({len(player_stats)} tracks)")
+
         return player_stats

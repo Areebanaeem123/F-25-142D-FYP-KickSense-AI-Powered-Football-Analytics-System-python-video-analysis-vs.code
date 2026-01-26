@@ -5,8 +5,6 @@ from sklearn.decomposition import PCA
 import cv2
 import torch
 from transformers import AutoProcessor, SiglipModel
-
-
 def _torso_crop(frame: np.ndarray, bbox: Tuple[int, int, int, int], padding: int = 4) -> Optional[np.ndarray]:
     """
     Crop upper-torso region to focus on jersey colors and reduce grass/shorts noise.
@@ -24,14 +22,11 @@ def _torso_crop(frame: np.ndarray, bbox: Tuple[int, int, int, int], padding: int
     if crop.size == 0:
         return None
     return crop
-
-
 class TeamClassifier:
     """
     Lightweight team assignment using jersey color clustering.
     Collects color features over warmup frames, then clusters into K teams.
     """
-
     def __init__(self, k: int = 2, warmup_frames: int = 80, min_samples: int = 30, random_state: int = 42):
         self.k = k
         self.warmup_frames = warmup_frames
@@ -50,10 +45,8 @@ class TeamClassifier:
             return
         self.features.append(feat)
         self.track_ids.append(track_id)
-
         if self.kmeans is None and len(self.features) >= self.min_samples and self.frame_count >= self.warmup_frames:
             self._fit()
-
     def _fit(self):
         self.kmeans = KMeans(n_clusters=self.k, random_state=42, n_init="auto")
         self.kmeans.fit(np.array(self.features))
