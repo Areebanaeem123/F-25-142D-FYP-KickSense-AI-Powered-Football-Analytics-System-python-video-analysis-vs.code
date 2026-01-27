@@ -1,7 +1,9 @@
 """
 Main script for football player tracking system
-Uses keyframe homography for real-world speed & distance estimation
+Uses MANUAL keyframe homography for real-world speed & distance estimation
 """
+
+import cv2
 
 from tracking_processor_optimized import OptimizedTrackingProcessor
 from video_renderer import VideoRenderer
@@ -25,6 +27,61 @@ STATS_CSV_PATH = "video_results/player_stats_advanced.csv"
 DISPLAY_SIZE = (900, 600)
 
 # ============================================================
+# 🖱️ MANUAL POINT SELECTION TOOL
+# ============================================================
+
+def select_circle_points(video_path, frame_idx):
+    cap = cv2.VideoCapture(video_path)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+    ret, frame = cap.read()
+    cap.release()
+
+    if not ret:
+        raise ValueError("❌ Could not read frame for homography selection")
+
+    points = []
+
+    def mouse_callback(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN and len(points) < 4:
+            points.append([x, y])
+            print(f"Point {len(points)} selected: ({x}, {y})")
+
+    instructions = [
+        "Click LEFT edge of center circle",
+        "Click RIGHT edge of center circle",
+        "Click BOTTOM edge of center circle",
+        "Click TOP edge of center circle",
+    ]
+
+    cv2.namedWindow("Select Center Circle Points")
+    cv2.setMouseCallback("Select Center Circle Points", mouse_callback)
+
+    while True:
+        display = frame.copy()
+
+        for i, p in enumerate(points):
+            cv2.circle(display, tuple(p), 6, (0, 255, 0), -1)
+            cv2.putText(display, str(i+1), tuple(p),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+
+        if len(points) < 4:
+            cv2.putText(display, instructions[len(points)], (20, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2)
+        else:
+            cv2.putText(display, "Press ENTER to confirm", (20, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
+
+        cv2.imshow("Select Center Circle Points", display)
+        key = cv2.waitKey(1)
+
+        if key == 13 and len(points) == 4:
+            break
+
+    cv2.destroyAllWindows()
+    return points
+
+
+# ============================================================
 # MAIN PIPELINE
 # ============================================================
 
@@ -32,7 +89,7 @@ def main():
     print("=" * 70)
     print("🎯 Football Player Tracking System (REAL-WORLD METRICS)")
     print("=" * 70)
-    print("📐 Mode: Keyframe Homography + Interpolation")
+    print("📐 Mode: Manual Keyframe Homography")
     print("⚽ Field reference: Center Circle (radius = 9.15m)")
     print()
 
@@ -51,7 +108,6 @@ def main():
 
     processor.process_video()
     processor.post_process()
-
     results = processor.get_results()
 
     tracks = results["tracks"]
@@ -64,34 +120,22 @@ def main():
     total_frames = results["total_frames"]
 
     # --------------------------------------------------------
-    # STEP 2: HOMOGRAPHY SETUP
+    # STEP 2: MANUAL HOMOGRAPHY CALIBRATION
     # --------------------------------------------------------
 
     print("\n" + "=" * 70)
-    print("STEP 2: Homography Calibration")
+    print("STEP 2: Manual Homography Calibration")
     print("-" * 70)
 
     homography = KeyframeHomography()
 
-    homography.add_keyframe(
-        frame_idx=120,
-        image_points=[
-            [640, 360],  # left
-            [820, 360],  # right
-            [730, 450],  # bottom
-            [730, 270],  # top
-        ]
-    )
+    print("\n🎯 Select points for FIRST keyframe")
+    points1 = select_circle_points(VIDEO_PATH, frame_idx=120)
+    homography.add_keyframe(120, points1)
 
-    homography.add_keyframe(
-        frame_idx=600,
-        image_points=[
-            [620, 370],
-            [840, 360],
-            [740, 470],
-            [740, 260],
-        ]
-    )
+    print("\n🎯 Select points for SECOND keyframe")
+    points2 = select_circle_points(VIDEO_PATH, frame_idx=600)
+    homography.add_keyframe(600, points2)
 
     print(f"✅ Added {len(homography.keyframes)} homography keyframes")
 
@@ -104,7 +148,6 @@ def main():
     print("-" * 70)
 
     apply_homography_to_tracks(tracks, homography)
-
     print("✅ Player coordinates mapped to meters")
 
     # --------------------------------------------------------
@@ -139,10 +182,7 @@ def main():
     print("STEP 5: Speed & Distance Estimation")
     print("-" * 70)
 
-    speed_estimator = SpeedAndDistance_Estimator(
-        fps=fps,
-        frame_window=5
-    )
+    speed_estimator = SpeedAndDistance_Estimator(fps=fps, frame_window=5)
 
     speed_estimator.smooth_positions(tracks)
     speed_estimator.add_speed_and_distance_to_tracks(tracks)
@@ -162,7 +202,6 @@ def main():
     print("\n" + "=" * 70)
     print("✅ PROCESSING COMPLETE")
     print("=" * 70)
-
     print(f"📹 Output video: {OUTPUT_VIDEO_PATH}")
     print(f"📊 Statistics CSV: {STATS_CSV_PATH}")
     print("=" * 70)

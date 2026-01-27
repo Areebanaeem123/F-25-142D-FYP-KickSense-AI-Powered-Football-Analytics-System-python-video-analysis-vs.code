@@ -2,11 +2,11 @@ import cv2
 import numpy as np
 import os
 import csv
+from scipy.signal import savgol_filter
 
 # ============================================================
-# 📐 CONSTANTS – REAL WORLD CENTER CIRCLE (meters)
+# 📐 REAL WORLD CENTER CIRCLE POINTS (meters)
 # ============================================================
-
 CENTER_CIRCLE_RADIUS = 9.15  # meters
 
 REAL_WORLD_POINTS = np.array([
@@ -16,10 +16,62 @@ REAL_WORLD_POINTS = np.array([
     [ 0.0,  CENTER_CIRCLE_RADIUS],   # top
 ], dtype=np.float32)
 
+# ============================================================
+# 🖱️ MANUAL POINT SELECTION TOOL
+# ============================================================
 
-# ============================================================
-# 🧱 STEP 1: KEYFRAME HOMOGRAPHY MANAGER
-# ============================================================
+def select_circle_points(video_path, frame_idx):
+    """
+    Lets user manually click 4 points on the center circle.
+    Order to click: 1) LEFT, 2) RIGHT, 3) BOTTOM, 4) TOP
+    """
+    cap = cv2.VideoCapture(video_path)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+    ret, frame = cap.read()
+    cap.release()
+
+    if not ret:
+        raise ValueError("❌ Could not read frame for homography selection")
+
+    points = []
+
+    def mouse_callback(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN and len(points) < 4:
+            points.append([x, y])
+            print(f"Point {len(points)} selected: ({x}, {y})")
+
+    instructions = [
+        "Click LEFT edge of center circle",
+        "Click RIGHT edge of center circle",
+        "Click BOTTOM edge of center circle",
+        "Click TOP edge of center circle",
+    ]
+
+    cv2.namedWindow("Select Center Circle Points")
+    cv2.setMouseCallback("Select Center Circle Points", mouse_callback)
+
+    while True:
+        display = frame.copy()
+
+        for i, p in enumerate(points):
+            cv2.circle(display, tuple(p), 6, (0, 255, 0), -1)
+            cv2.putText(display, str(i+1), tuple(p), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+
+        if len(points) < 4:
+            cv2.putText(display, instructions[len(points)], (20, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,255), 2)
+        else:
+            cv2.putText(display, "Press ENTER to confirm", (20, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
+
+        cv2.imshow("Select Center Circle Points", display)
+        key = cv2.waitKey(1)
+
+        if key == 13 and len(points) == 4:  # ENTER key
+            break
+
+    cv2.destroyAllWindows()
+    return points
 
 class KeyframeHomography:
     """
@@ -34,11 +86,9 @@ class KeyframeHomography:
 
     def add_keyframe(self, frame_idx, image_points):
         """
-        image_points: list of 4 pixel points
-        Order MUST be: [left, right, bottom, top]
+        image_points: list of 4 pixel points [left, right, bottom, top]
         """
         image_points = np.array(image_points, dtype=np.float32)
-
         H, _ = cv2.findHomography(image_points, REAL_WORLD_POINTS)
         self.keyframes[frame_idx] = H
 
@@ -69,12 +119,13 @@ class KeyframeHomography:
 
 
 # ============================================================
-# 🧩 STEP 2: APPLY HOMOGRAPHY TO TRACKS
+# 🧩 STEP 2: APPLY HOMOGRAPHY TO TRACKS (Corrected for FEET)
 # ============================================================
 
 def apply_homography_to_tracks(tracks, homography_manager):
     """
-    Adds 'position_transformed' (meters) to each track
+    Adds 'position_transformed' (meters) to each track.
+    Using Bottom-Center (Feet) logic to fix perspective error.
     """
     for object_name, object_tracks in tracks.items():
         if object_name in ["ball", "referees"]:
@@ -82,16 +133,27 @@ def apply_homography_to_tracks(tracks, homography_manager):
 
         for frame_idx, frame_data in object_tracks.items():
             for track_id, track_info in frame_data.items():
-                if "position" not in track_info:
+                
+                # FIX 1: Use Feet Position (Bottom of BBox)
+                # Assuming 'bbox' is [x1, y1, x2, y2]
+                if "bbox" in track_info:
+                    bbox = track_info["bbox"]
+                    x_center = (bbox[0] + bbox[2]) / 2
+                    y_bottom = bbox[3] 
+                    pixel_pos = [x_center, y_bottom]
+                else:
+                    # Fallback if no bbox (unlikely for object trackers)
+                    pixel_pos = track_info.get("position")
+
+                if pixel_pos is None:
                     continue
 
-                pixel_pos = track_info["position"]  # [x, y]
                 real_pos = homography_manager.transform_point(pixel_pos, frame_idx)
                 track_info["position_transformed"] = real_pos
 
 
 # ============================================================
-# 🧮 STEP 3: SPEED & DISTANCE ESTIMATOR
+# 🧮 STEP 3: SPEED & DISTANCE ESTIMATOR (Corrected Logic)
 # ============================================================
 
 class SpeedAndDistance_Estimator:
@@ -104,7 +166,7 @@ class SpeedAndDistance_Estimator:
         return ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5
 
     # --------------------------------------------------------
-    # ✨ Smoothing
+    # ✨ Smoothing (UPGRADED: HEAVIER SMOOTHING)
     # --------------------------------------------------------
 
     def smooth_positions(self, tracks):
@@ -112,38 +174,52 @@ class SpeedAndDistance_Estimator:
             if object_name in ["ball", "referees"]:
                 continue
 
+            # 1. Collect all position data per track_id
             trajectory_data = {}
-
             for frame_num, frame_data in object_tracks.items():
                 for track_id, track_info in frame_data.items():
                     pos = track_info.get("position_transformed")
                     if pos is None:
                         continue
 
-                    trajectory_data.setdefault(track_id, [])
-                    trajectory_data[track_id].append([frame_num, pos[0], pos[1]])
+                    trajectory_data.setdefault(track_id, {"frames": [], "x": [], "y": []})
+                    trajectory_data[track_id]["frames"].append(frame_num)
+                    trajectory_data[track_id]["x"].append(pos[0])
+                    trajectory_data[track_id]["y"].append(pos[1])
 
-            for track_id, positions in trajectory_data.items():
-                if len(positions) < 5:
+            # 2. Apply Savitzky-Golay Filter to each track
+            for tid, data in trajectory_data.items():
+                if len(data["frames"]) < 7: # Need minimal data for filter
                     continue
 
-                positions_np = np.array(positions)
-                kernel = np.ones(5) / 5
+                # --- UPGRADE: Increased window length for smoother curves ---
+                # Was 25, now 45. (Roughly 1.5 seconds at 30fps)
+                # This squashes high-frequency noise/jitter effectively.
+                window_length = min(45, len(data["frames"]))
+                if window_length % 2 == 0:
+                    window_length -= 1
+                
+                poly_order = 2 
 
-                positions_np[:, 1] = np.convolve(positions_np[:, 1], kernel, mode="same")
-                positions_np[:, 2] = np.convolve(positions_np[:, 2], kernel, mode="same")
+                # Stronger smoothing on X and Y
+                smooth_x = savgol_filter(data["x"], window_length, poly_order)
+                smooth_y = savgol_filter(data["y"], window_length, poly_order)
 
-                for row in positions_np:
-                    f, x, y = int(row[0]), row[1], row[2]
-                    if f in object_tracks and track_id in object_tracks[f]:
-                        object_tracks[f][track_id]["position_transformed"] = [x, y]
+                # 3. Write smoothed data back to tracks
+                for i, frame_num in enumerate(data["frames"]):
+                    if frame_num in object_tracks and tid in object_tracks[frame_num]:
+                        object_tracks[frame_num][tid]["position_transformed"] = [smooth_x[i], smooth_y[i]]
 
     # --------------------------------------------------------
-    # 🚀 Speed & Distance
+    # 🚀 Speed & Distance (UPGRADED: STRICTER THRESHOLDS)
     # --------------------------------------------------------
 
     def add_speed_and_distance_to_tracks(self, tracks):
         total_distance = {}
+        
+        # --- UPGRADE: Stricter limits to match real-world data ---
+        MIN_SPEED_THRESH = 2.5  # Ignore slow shuffling (< 2.5 km/h)
+        MAX_SPEED_THRESH = 35.0 # Strict cap at Elite Sprint speed (~35 km/h)
 
         for object_name, object_tracks in tracks.items():
             if object_name in ["ball", "referees"]:
@@ -172,9 +248,17 @@ class SpeedAndDistance_Estimator:
 
                     speed_kmh = (dist / time) * 3.6
 
-                    if speed_kmh > 40:  # sanity cap
+                    # --- NOISE FILTERING ---
+                    # If speed is superhuman (jitter), kill it.
+                    if speed_kmh > MAX_SPEED_THRESH: 
                         speed_kmh = 0
                         dist = 0
+                    
+                    # If speed is tiny (vibration), kill it.
+                    if speed_kmh < MIN_SPEED_THRESH:
+                        speed_kmh = 0
+                        dist = 0 
+                    # -----------------------
 
                     total_distance.setdefault(object_name, {})
                     total_distance[object_name].setdefault(track_id, 0)
@@ -187,26 +271,25 @@ class SpeedAndDistance_Estimator:
                             object_tracks[f][track_id]["distance"] = total_distance[object_name][track_id]
 
     # --------------------------------------------------------
-    # 📤 CSV Export
+    # 📤 CSV Export (Filtered)
     # --------------------------------------------------------
     def export_stats_to_csv(self, tracks, output_path, track_class_map=None):
         """
         Export player statistics to CSV.
-        Includes all tracked players, even if speed/distance is zero.
+        FILTERS out 'ghost' tracks that have < 5m total distance.
         """
-        import os
-        import csv
-
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
         class_names = {0: "Ball", 1: "Goalkeeper", 2: "Player", 3: "Referee"}
         player_stats = []
 
+        # 1. Define Filter Thresholds
+        MIN_DISTANCE_THRESH = 5.0  # Meters. Ignore tracks shorter than this.
+        
         for object_name, object_tracks in tracks.items():
             if object_name in ["ball", "referees"]:
                 continue
 
-            # Collect all unique track IDs
             track_ids = set()
             for frame_data in object_tracks.values():
                 track_ids.update(frame_data.keys())
@@ -223,11 +306,16 @@ class SpeedAndDistance_Estimator:
                         if "distance" in track_info:
                             total_distance = max(total_distance, track_info["distance"])
 
-                # Determine player class
+                # --- FILTERING STEP ---
+                # If the "player" moved less than 5 meters in the whole clip, 
+                # it's likely a detection glitch or a fragment. Skip it.
+                if total_distance < MIN_DISTANCE_THRESH:
+                    continue
+                # ----------------------
+
                 class_id = track_class_map.get(tid, 2) if track_class_map else 2
                 class_name = class_names.get(class_id, "Unknown")
 
-                # Append stats (even if no speed)
                 player_stats.append({
                     "track_id": tid,
                     "class": class_name,
@@ -236,7 +324,9 @@ class SpeedAndDistance_Estimator:
                     "total_distance_m": total_distance
                 })
 
-        # Write CSV
+        # Sort by ID for cleaner reading
+        player_stats.sort(key=lambda x: x['track_id'])
+
         with open(output_path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["Track_ID", "Class", "Max_Speed_kmh", "Avg_Speed_kmh", "Total_Distance_m"])
@@ -249,6 +339,5 @@ class SpeedAndDistance_Estimator:
                     f"{stats['total_distance_m']:.2f}"
                 ])
 
-        print(f"✅ Player statistics saved ({len(player_stats)} tracks)")
-
+        print(f"✅ Player statistics saved ({len(player_stats)} valid tracks)")
         return player_stats
