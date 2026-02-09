@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 162 50% 4%;
+    --foreground: 150 20% 90%;
+    --card: 160 40% 8%;
+    --card-foreground: 150 20% 90%;
+    --popover: 160 40% 8%;
+    --popover-foreground: 150 20% 90%;
+    --primary: 160 72% 14%;
+    --primary-foreground: 150 30% 95%;
+    --secondary: 158 30% 10%;
+    --secondary-foreground: 150 20% 90%;
+    --muted: 160 25% 12%;
+    --muted-foreground: 155 15% 55%;
+    --accent: 154 80% 40%;
+    --accent-foreground: 160 72% 8%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 155 30% 16%;
+    --input: 155 30% 16%;
+    --ring: 154 80% 40%;
+    --chart-1: 154 80% 40%;
+    --chart-2: 160 60% 30%;
+    --chart-3: 170 50% 25%;
+    --chart-4: 145 70% 45%;
+    --chart-5: 140 60% 35%;
+    --radius: 0.75rem;
+    --sidebar-background: 160 50% 6%;
+    --sidebar-foreground: 150 20% 85%;
+    --sidebar-primary: 154 80% 40%;
+    --sidebar-primary-foreground: 160 72% 8%;
+    --sidebar-accent: 158 40% 12%;
+    --sidebar-accent-foreground: 150 20% 90%;
+    --sidebar-border: 155 30% 16%;
+    --sidebar-ring: 154 80% 40%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(20, 184, 113, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(20, 184, 113, 0.6);
+  }
+}
+
+@keyframes pulse-icon {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+.animate-fade-in-delay-1 {
+  animation: fadeIn 0.8s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-delay-2 {
+  animation: fadeIn 0.8s ease-out 0.4s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-delay-2-glow {
+  animation: fadeIn 0.8s ease-out 0.4s forwards, glowPulse 2s ease-in-out 1.2s infinite;
+  opacity: 0;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s ease-out forwards;
+}
+
+.animate-glow-pulse {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+.animate-pulse-icon {
+  animation: pulse-icon 2s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.6s ease-out forwards;
+}
+
+.glass {
+  background: rgba(10, 61, 44, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(20, 184, 113, 0.15);
+}
+
+.glass-strong {
+  background: rgba(10, 61, 44, 0.6);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(20, 184, 113, 0.2);
+}
+
+.glass-card {
+  background: rgba(10, 61, 44, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(20, 184, 113, 0.12);
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  background: rgba(10, 61, 44, 0.5);
+  border-color: rgba(20, 184, 113, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(20, 184, 113, 0.15);
+}
