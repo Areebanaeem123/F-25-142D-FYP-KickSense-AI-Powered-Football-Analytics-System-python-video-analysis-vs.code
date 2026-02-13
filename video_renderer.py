@@ -74,13 +74,23 @@ class VideoRenderer:
             legend_y += 30
     
     def render_video(self, tracks, track_class_map, camera_movement_per_frame, 
-                     fps, width, height, total_frames):
+                     fps, width, height, total_frames, 
+                     cohesion_analyzer=None, cohesion_timeline=None):
         """Render video with all overlays"""
         print("\n🎨 Rendering video with overlays...")
         
         self.fps = fps
         self.width = width
         self.height = height
+        
+        # Convert timeline lists to dict for O(1) lookup: frame -> score
+        # team_0: { frame_idx: score, ... }
+        cohesion_map = {'team_0': {}, 'team_1': {}}
+        if cohesion_timeline:
+            for team_name in ['team_0', 'team_1']:
+                if team_name in cohesion_timeline:
+                    for f, s in cohesion_timeline[team_name]:
+                        cohesion_map[team_name][f] = s
         
         self.cap = cv2.VideoCapture(self.video_path)
         if not self.cap.isOpened():
@@ -156,6 +166,39 @@ class VideoRenderer:
             if "ball" in tracks and frame_idx in tracks["ball"]:
                 for ball_id, ball_info in tracks["ball"][frame_idx].items():
                     self.draw_triangle_for_ball(frame, ball_info['bbox'], CLASS_COLORS[0])
+            
+            # --- Draw Cohesion Analysis ---
+            if cohesion_analyzer:
+                # Need pixel positions for current frame for each team
+                team_0_pixels = []
+                team_1_pixels = []
+                
+                if "players" in tracks and frame_idx in tracks["players"]:
+                    for tid, tinfo in tracks["players"][frame_idx].items():
+                         # We need bbox to get foot position in pixels
+                         if 'bbox' in tinfo and 'team_id' in tinfo:
+                             # Use bottom center of bbox as player position
+                             x1, y1, x2, y2 = tinfo['bbox']
+                             cx, cy = int((x1 + x2)/2), int(y2)
+                             
+                             if tinfo['team_id'] == 0:
+                                 team_0_pixels.append((cx, cy))
+                             elif tinfo['team_id'] == 1:
+                                 team_1_pixels.append((cx, cy))
+                
+                # Retrieve pre-calculated scores for this frame
+                score_0 = cohesion_map['team_0'].get(frame_idx)
+                score_1 = cohesion_map['team_1'].get(frame_idx)
+                
+                if score_0 is not None:
+                     frame = cohesion_analyzer.visualize_cohesion(
+                         frame, team_0_pixels, score_0, self.team_colors[0]
+                     )
+                if score_1 is not None:
+                     frame = cohesion_analyzer.visualize_cohesion(
+                         frame, team_1_pixels, score_1, self.team_colors[1]
+                     )
+            # ------------------------------
             
             # Frame counter
             cv2.rectangle(frame, (10, 10), (400, 50), (0, 0, 0), -1)

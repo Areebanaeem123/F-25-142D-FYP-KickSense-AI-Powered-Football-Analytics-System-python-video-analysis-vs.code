@@ -273,7 +273,7 @@ class SpeedAndDistance_Estimator:
     # --------------------------------------------------------
     # 📤 CSV Export (Filtered)
     # --------------------------------------------------------
-    def export_stats_to_csv(self, tracks, output_path, track_class_map=None):
+    def export_stats_to_csv(self, tracks, output_path, track_class_map=None, foul_risk_map=None):
         """
         Export player statistics to CSV.
         FILTERS out 'ghost' tracks that have < 5m total distance.
@@ -329,15 +329,28 @@ class SpeedAndDistance_Estimator:
 
         with open(output_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["Track_ID", "Class", "Max_Speed_kmh", "Avg_Speed_kmh", "Total_Distance_m"])
+            header = ["Track_ID", "Class", "Max_Speed_kmh", "Avg_Speed_kmh", "Total_Distance_m"]
+            if foul_risk_map is not None:
+                header += ["Foul_Risk", "Yellow_Likelihood", "Red_Likelihood", "Card_Prediction", "Contact_Events"]
+            writer.writerow(header)
             for stats in player_stats:
-                writer.writerow([
+                row = [
                     stats["track_id"],
                     stats["class"],
                     f"{stats['max_speed_kmh']:.2f}",
                     f"{stats['avg_speed_kmh']:.2f}",
-                    f"{stats['total_distance_m']:.2f}"
-                ])
+                    f"{stats['total_distance_m']:.2f}",
+                ]
+                if foul_risk_map is not None:
+                    foul = foul_risk_map.get(stats["track_id"])
+                    row += [
+                        f"{foul['foul_risk']:.2f}" if foul else "",
+                        f"{foul['yellow_likelihood']:.2f}" if foul else "",
+                        f"{foul['red_likelihood']:.2f}" if foul else "",
+                        f"{foul['card_prediction']}" if foul else "",
+                        f"{foul['contact_events']}" if foul else "",
+                    ]
+                writer.writerow(row)
 
         print(f"✅ Player statistics saved ({len(player_stats)} valid tracks)")
         return player_stats

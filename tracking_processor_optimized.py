@@ -10,6 +10,130 @@ from player_ball_assigner import assign_ball_to_players
 from team_classifier import SiglipTeamClassifier
 from view_transformer import ViewTransformer
 
+
+class StableIDManager:
+    """
+    Maintains stable person IDs across temporary exits by re-identifying
+    with appearance (HSV histograms) + position gating.
+    """
+
+    def __init__(
+        self,
+        fps: int,
+        max_inactive_seconds: float = 2.5,
+        hist_bins: int = 16,
+        min_hist_score: float = 0.45,
+        base_position_gate: float = 80.0,
+        max_speed_px_per_frame: float = 18.0,
+    ):
+        self.max_inactive_frames = max(1, int(fps * max_inactive_seconds))
+        self.hist_bins = hist_bins
+        self.min_hist_score = min_hist_score
+        self.base_position_gate = base_position_gate
+        self.max_speed_px_per_frame = max_speed_px_per_frame
+
+        self.next_global_id = 1
+        self.active_track_to_global = {}
+        self.global_state = {}
+
+    @staticmethod
+    def _clamp_bbox(bbox, width, height):
+        x1, y1, x2, y2 = bbox
+        x1 = max(0, min(width - 1, x1))
+        x2 = max(0, min(width - 1, x2))
+        y1 = max(0, min(height - 1, y1))
+        y2 = max(0, min(height - 1, y2))
+        if x2 <= x1 or y2 <= y1:
+            return None
+        return [x1, y1, x2, y2]
+
+    def _compute_hist(self, frame, bbox):
+        h, w = frame.shape[:2]
+        bbox = self._clamp_bbox(bbox, w, h)
+        if bbox is None:
+            return None
+        x1, y1, x2, y2 = bbox
+        if (x2 - x1) < 8 or (y2 - y1) < 8:
+            return None
+        crop = frame[y1:y2, x1:x2]
+        hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+        hist = cv2.calcHist([hsv], [0, 1], None, [self.hist_bins, self.hist_bins], [0, 180, 0, 256])
+        hist = cv2.normalize(hist, hist).flatten()
+        return hist
+
+    @staticmethod
+    def _cosine_sim(a, b):
+        if a is None or b is None:
+            return None
+        denom = (np.linalg.norm(a) * np.linalg.norm(b)) + 1e-8
+        return float(np.dot(a, b) / denom)
+
+    def _position_gate(self, last_pos, pos, dt):
+        if last_pos is None or pos is None:
+            return True, None
+        dist = float(np.hypot(pos[0] - last_pos[0], pos[1] - last_pos[1]))
+        allowed = self.base_position_gate + self.max_speed_px_per_frame * dt
+        return dist <= allowed, dist / max(allowed, 1e-6)
+
+    def _match_inactive(self, hist, pos, frame_idx):
+        best_gid = None
+        best_score = -1.0
+        for gid, state in self.global_state.items():
+            dt = frame_idx - state["last_seen"]
+            if dt <= 0 or dt > self.max_inactive_frames:
+                continue
+
+            ok, pos_ratio = self._position_gate(state.get("last_pos"), pos, dt)
+            if not ok:
+                continue
+
+            hist_score = self._cosine_sim(hist, state.get("hist"))
+            if hist_score is None:
+                # Fallback to position-only score
+                score = 1.0 - (pos_ratio or 1.0)
+            else:
+                # Slightly penalize larger position deltas
+                score = hist_score - 0.15 * (pos_ratio or 0.0)
+
+            if score > best_score:
+                best_score = score
+                best_gid = gid
+
+        if best_gid is not None and best_score >= self.min_hist_score:
+            return best_gid
+        return None
+
+    def assign(self, track_id, frame, bbox, pos, frame_idx):
+        if track_id in self.active_track_to_global:
+            gid = self.active_track_to_global[track_id]
+        else:
+            hist = self._compute_hist(frame, bbox)
+            gid = self._match_inactive(hist, pos, frame_idx)
+            if gid is None:
+                gid = self.next_global_id
+                self.next_global_id += 1
+            self.active_track_to_global[track_id] = gid
+
+        hist = self._compute_hist(frame, bbox)
+        state = self.global_state.setdefault(gid, {})
+        state["hist"] = hist
+        state["last_pos"] = pos
+        state["last_seen"] = frame_idx
+        return gid
+
+    def cleanup(self, seen_track_ids, frame_idx):
+        # Drop active mappings for tracks not seen this frame
+        missing = [tid for tid in self.active_track_to_global if tid not in seen_track_ids]
+        for tid in missing:
+            self.active_track_to_global.pop(tid, None)
+
+        # Prune very old inactive IDs
+        prune_after = self.max_inactive_frames * 3
+        to_delete = [gid for gid, st in self.global_state.items()
+                     if frame_idx - st.get("last_seen", frame_idx) > prune_after]
+        for gid in to_delete:
+            self.global_state.pop(gid, None)
+
 class OptimizedTrackingProcessor:
     """Optimized version with performance improvements"""
     
@@ -59,10 +183,12 @@ class OptimizedTrackingProcessor:
             min_samples=24,
             pca_components=64,
         )
+        self.id_manager = StableIDManager(fps=self.fps)
         
         # Data storage
         self.tracks = defaultdict(lambda: defaultdict(dict))
         self.track_class_map = {}
+        self.stable_class_map = {}
         self.camera_movement_per_frame = []
         
         # OPTIMIZATION: Cache for detections and classifications
@@ -122,6 +248,25 @@ class OptimizedTrackingProcessor:
     def pixel_to_meters(self, pixel_distance):
         """Convert pixel distance to meters"""
         return pixel_distance
+
+    @staticmethod
+    def _prefer_class(existing_cls, new_cls):
+        """
+        Prefer non-player classes when available.
+        Priority: Goalkeeper (1), Referee (3), Player (2).
+        """
+        if existing_cls is None:
+            return new_cls
+        if existing_cls == new_cls:
+            return existing_cls
+        # If we already have GK/Ref, keep it.
+        if existing_cls in (1, 3):
+            return existing_cls
+        # If new is GK/Ref, upgrade from Player.
+        if new_cls in (1, 3):
+            return new_cls
+        # Otherwise keep existing.
+        return existing_cls
     
     def estimate_camera_movement(self, frame):
         """Estimate camera movement for current frame"""
@@ -234,9 +379,11 @@ class OptimizedTrackingProcessor:
             
             # Data preparation and storage
             t1 = time.time()
+            seen_track_ids = set()
             for track in tracked_objects:
                 if not track.is_confirmed():
                     continue
+                seen_track_ids.add(track.track_id)
                 
                 # Match track to detection
                 track_bbox = track.to_ltrb()
@@ -278,8 +425,19 @@ class OptimizedTrackingProcessor:
                     self.team_classifier.track_team.pop(track.track_id, None)
                 else:
                     object_name = "players"
-                
-                self.tracks[object_name][frame_idx][track.track_id] = {
+
+                stable_id = self.id_manager.assign(
+                    track.track_id,
+                    frame=frame,
+                    bbox=bbox,
+                    pos=(foot_x, foot_y),
+                    frame_idx=frame_idx,
+                )
+
+                existing_cls = self.stable_class_map.get(stable_id)
+                self.stable_class_map[stable_id] = self._prefer_class(existing_cls, cls)
+
+                self.tracks[object_name][frame_idx][stable_id] = {
                     'bbox': bbox,
                     'position': (foot_x, foot_y),
                     'position_adjusted': (foot_x_adjusted, foot_y_adjusted),
@@ -296,18 +454,19 @@ class OptimizedTrackingProcessor:
                     
                     t_team = time.time()
                     if should_classify:
-                        self.team_classifier.add_sample(frame, bbox, track.track_id)
-                        team_id = self.team_classifier.predict(frame, bbox, track.track_id)
-                        self.classified_tracks.add(track.track_id)
+                        self.team_classifier.add_sample(frame, bbox, stable_id)
+                        team_id = self.team_classifier.predict(frame, bbox, stable_id)
+                        self.classified_tracks.add(stable_id)
                     else:
                         # Reuse existing classification
-                        team_id = self.team_classifier.track_team.get(track.track_id)
+                        team_id = self.team_classifier.track_team.get(stable_id)
                     
                     if team_id is not None:
-                        self.tracks[object_name][frame_idx][track.track_id]['team_id'] = team_id
+                        self.tracks[object_name][frame_idx][stable_id]['team_id'] = team_id
                     self.timers['team_class'] += time.time() - t_team
             
             self.timers['data_prep'] += time.time() - t1
+            self.id_manager.cleanup(seen_track_ids, frame_idx)
             
             # Ball tracking (no optimization needed - minimal cost)
             for ball in ball_detections:
@@ -357,6 +516,7 @@ class OptimizedTrackingProcessor:
         return {
             'tracks': self.tracks,
             'track_class_map': self.track_class_map,
+            'stable_class_map': self.stable_class_map,
             'camera_movement': self.camera_movement_per_frame,
             'fps': self.fps,
             'width': self.width,

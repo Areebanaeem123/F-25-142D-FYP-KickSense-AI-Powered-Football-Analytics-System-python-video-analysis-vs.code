@@ -36,4 +36,11 @@ test2.mp4
 test3.mp4
 best.pt
 .venv
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.env
 IMPLEMENTATION_FEATURES.md
+/frontend/.gitignore

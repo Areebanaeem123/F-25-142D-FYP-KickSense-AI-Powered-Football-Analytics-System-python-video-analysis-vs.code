@@ -2,52 +2,15 @@
 
 import { useState } from "react"
 import { SidebarNav } from "@/components/sidebar-nav"
-import { UploadVideoPanel } from "@/components/panels/upload-video"
-import { IndividualPlayerStats } from "@/components/panels/individual-player-stats"
-import { IdealFormation } from "@/components/panels/ideal-formation"
-import {TeamCohesion} from "@/components/panels/team-cohesion-index"
-import {IdealSubstitution} from "@/components/panels/ideal-substitution"
-import {FoulCardAnalysis} from "@/components/panels/foul-card"
-import {AdvancedMatchInsights} from "@/components/panels/advanced-match-insights"
-import {VisualTacticalAnalysis} from "@/components/panels/visual-tactical-analysis"
-import {MatchReportExport} from "@/components/panels/match-report-export"
+import { IndividualPlayerStats } from "@/components/individual-player-stats"
 
 
 export function Dashboard() {
-  const [activeTab, setActiveTab] = useState("upload")
+  const [activeTab, setActiveTab] = useState("player-stats")
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const renderPanel = () => {
-    switch (activeTab) {
-      case "upload":
-        return <UploadVideoPanel />
-      case "detection":
-        return <PlayerDetectionPanel />
-      case "metrics":
-        return <PerformanceMetricsPanel />
-      case "team":
-        return <TeamAnalysisPanel />
-      case "reports":
-        return <ReportsAnalyticsPanel />
-      case "individual-player-stats":
-        return <IndividualPlayerStats />
-      case "ideal-formation":
-        return <IdealFormation/>
-      case "team-cohesion-index":
-        return <TeamCohesion/>
-      case "ideal-substitution":
-        return <IdealSubstitution/>
-      case "foul-card":
-        return <FoulCardAnalysis/>
-      case "advanced-match-insights":
-        return <AdvancedMatchInsights/>
-      case "visual-tactical-analysis":
-        return <VisualTacticalAnalysis/>
-      case "match-report-export":
-        return <MatchReportExport/>
-      default:
-        return <UploadVideoPanel />
-    }
+    return <IndividualPlayerStats />
   }
 
   return (

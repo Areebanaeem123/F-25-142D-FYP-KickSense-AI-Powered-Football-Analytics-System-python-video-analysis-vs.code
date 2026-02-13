@@ -4,7 +4,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import cv2
 import torch
-from transformers import AutoProcessor, SiglipModel
+from transformers import AutoImageProcessor, SiglipModel
 def _torso_crop(frame: np.ndarray, bbox: Tuple[int, int, int, int], padding: int = 4) -> Optional[np.ndarray]:
     """
     Crop upper-torso region to focus on jersey colors and reduce grass/shorts noise.
@@ -109,28 +109,84 @@ class SiglipTeamClassifier:
 
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         print(f"[Team/SigLIP] Loading model '{model_name}' on {self.device}...")
-        self.processor = AutoProcessor.from_pretrained(model_name, use_fast=True)
-        self.model = SiglipModel.from_pretrained(model_name).to(self.device)
-        self.model.eval()
-        print("[Team/SigLIP] Model ready.")
+        try:
+            self.processor = AutoImageProcessor.from_pretrained(model_name, use_fast=False)
+            self.model = SiglipModel.from_pretrained(model_name).to(self.device)
+            self.model.eval()
+            print("[Team/SigLIP] Model ready.")
+            self.siglip_available = True
+        except Exception as e:
+            print(f"[Team/SigLIP] ⚠️ Model loading failed: {e}")
+            print("[Team/SigLIP] Falling back to color-based classification...")
+            self.processor = None
+            self.model = None
+            self.siglip_available = False
 
     def _prepare_input(self, crop: np.ndarray):
+        if not self.siglip_available or self.processor is None:
+            return None
         rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
         return self.processor(images=rgb, return_tensors="pt").to(self.device)
 
     def _extract_embedding(self, frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> Optional[np.ndarray]:
+        if not self.siglip_available or self.model is None:
+            # Fallback: use simple color-based feature
+            return self._extract_color_feature(frame, bbox)
+        
         crop = _torso_crop(frame, bbox, padding=4)
         if crop is None:
             return None
         inputs = self._prepare_input(crop)
+        if inputs is None:
+            return self._extract_color_feature(frame, bbox)
         with torch.no_grad():
-            out = self.model.get_image_features(**inputs)
-        emb = out.cpu().numpy().flatten()
+            # Transformers versions differ: some return Tensor, others return output objects.
+            try:
+                out = self.model.get_image_features(**inputs)
+            except Exception:
+                out = self.model(**inputs)
+
+        if isinstance(out, torch.Tensor):
+            emb_t = out
+        elif hasattr(out, "image_embeds") and out.image_embeds is not None:
+            emb_t = out.image_embeds
+        elif hasattr(out, "pooler_output") and out.pooler_output is not None:
+            emb_t = out.pooler_output
+        else:
+            # Last resort: fallback to color features if the output is unexpected
+            return self._extract_color_feature(frame, bbox)
+
+        emb = emb_t.detach().cpu().numpy().flatten()
         # L2 normalize for cosine-like separation
         norm = np.linalg.norm(emb)
         if norm > 0:
             emb = emb / norm
         return emb
+    
+    def _extract_color_feature(self, frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> np.ndarray:
+        """Fallback color-based feature extraction"""
+        crop = _torso_crop(frame, bbox, padding=4)
+        if crop is None:
+            return np.zeros(1024)  # Return dummy embedding
+        
+        # Convert to HSV for better color separation
+        hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+        
+        # Create a simple color histogram feature
+        h_hist = cv2.calcHist([h], [0], None, [16], [0, 180])
+        s_hist = cv2.calcHist([s], [0], None, [8], [0, 256])
+        v_hist = cv2.calcHist([v], [0], None, [8], [0, 256])
+        
+        feature = np.concatenate([h_hist.flatten(), s_hist.flatten(), v_hist.flatten()])
+        feature = feature.astype(np.float64)
+        
+        # Normalize
+        norm = np.linalg.norm(feature)
+        if norm > 0:
+            feature = feature / norm
+        
+        return feature
 
     def add_sample(self, frame: np.ndarray, bbox: Tuple[int, int, int, int], track_id: int):
         self.frame_count += 1
@@ -190,4 +246,3 @@ class SiglipTeamClassifier:
 
     def cluster_ready(self) -> bool:
         return self.kmeans is not None
-
