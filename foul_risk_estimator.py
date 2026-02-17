@@ -45,7 +45,6 @@ class FoulRiskEstimator:
             for frame_idx in tracks.get(group, {}):
                 frame_indices.add(frame_idx)
         frame_indices = sorted(frame_indices)
-
         for frame_idx in frame_indices:
             frame_players = []
 

@@ -16,7 +16,6 @@ class ViewTransformer:
             [1400, 150],  # Top-Right
             [520, 150]    # Top-Left
         ], dtype=np.float32)
-
         # 3. Target Points (Top-Down Map in Meters)
         self.target_vertices = np.array([
             [0, target_height],           # Bottom-Left (0, 68)
@@ -24,7 +23,6 @@ class ViewTransformer:
             [target_width, 0],             # Top-Right (105, 0)
             [0, 0]                         # Top-Left (0, 0)
         ], dtype=np.float32)
-
         # 4. Compute the Matrix once
         self.perspective_transformer = cv2.getPerspectiveTransform(
             self.pixel_vertices, self.target_vertices

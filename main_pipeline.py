@@ -21,7 +21,7 @@ from foul_risk_estimator import FoulRiskEstimator
 # CONFIGURATION
 # ============================================================
 
-VIDEO_PATH = "/home/areeba/Downloads/working_video.mp4"
+VIDEO_PATH = "/home/areeba/Desktop/real.mp4"
 MODEL_PATH = "/home/areeba/Downloads/weights/best.pt"
 
 OUTPUT_VIDEO_PATH = "video_results/advanced_player_tracking_output.mp4"
@@ -35,7 +35,13 @@ DISPLAY_SIZE = (900, 600)
 
 def select_circle_points(video_path, frame_idx):
     cap = cv2.VideoCapture(video_path)
-    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if total_frames <= 0:
+        cap.release()
+        raise ValueError("❌ Could not read video metadata for homography selection")
+
+    safe_frame_idx = max(0, min(int(frame_idx), total_frames - 1))
+    cap.set(cv2.CAP_PROP_POS_FRAMES, safe_frame_idx)
     ret, frame = cap.read()
     cap.release()
 
@@ -82,6 +88,24 @@ def select_circle_points(video_path, frame_idx):
 
     cv2.destroyAllWindows()
     return points
+
+
+def choose_homography_keyframes(total_frames):
+    """
+    Choose two valid keyframes within the video duration.
+    Uses 30% and 80% of timeline to capture perspective changes.
+    """
+    if total_frames <= 1:
+        return 0, 0
+
+    last_idx = total_frames - 1
+    first = int(0.30 * last_idx)
+    second = int(0.80 * last_idx)
+
+    if second <= first:
+        second = min(last_idx, first + 1)
+
+    return first, second
 
 
 # ============================================================
@@ -133,13 +157,16 @@ def main():
 
     homography = KeyframeHomography()
 
+    keyframe_1, keyframe_2 = choose_homography_keyframes(total_frames)
+    print(f"🎞️ Auto-selected homography frames: {keyframe_1}, {keyframe_2}")
+
     print("\n🎯 Select points for FIRST keyframe")
-    points1 = select_circle_points(VIDEO_PATH, frame_idx=120)
-    homography.add_keyframe(120, points1)
+    points1 = select_circle_points(VIDEO_PATH, frame_idx=keyframe_1)
+    homography.add_keyframe(keyframe_1, points1)
 
     print("\n🎯 Select points for SECOND keyframe")
-    points2 = select_circle_points(VIDEO_PATH, frame_idx=600)
-    homography.add_keyframe(600, points2)
+    points2 = select_circle_points(VIDEO_PATH, frame_idx=keyframe_2)
+    homography.add_keyframe(keyframe_2, points2)
 
     print(f"✅ Added {len(homography.keyframes)} homography keyframes")
 
