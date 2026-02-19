@@ -32,3 +32,20 @@ CREATE TABLE IF NOT EXISTS tracking_data (
 
 -- Convert to Hypertable for performance
 SELECT create_hypertable('tracking_data', 'time', if_not_exists => TRUE);
+
+-- 4. Aggregated Player Stats (one row per player per match)
+CREATE TABLE IF NOT EXISTS player_match_stats (
+    match_id INT REFERENCES matches(match_id),
+    track_id INT NOT NULL,
+    class VARCHAR(20),
+    max_speed_kmh DOUBLE PRECISION,
+    avg_speed_kmh DOUBLE PRECISION,
+    total_distance_m DOUBLE PRECISION,
+    foul_risk DOUBLE PRECISION,
+    yellow_likelihood DOUBLE PRECISION,
+    red_likelihood DOUBLE PRECISION,
+    card_prediction VARCHAR(20),
+    contact_events INT,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (match_id, track_id)
+);

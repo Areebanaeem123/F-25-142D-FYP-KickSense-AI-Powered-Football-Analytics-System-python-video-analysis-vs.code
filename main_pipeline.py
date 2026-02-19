@@ -6,6 +6,8 @@ Uses MANUAL keyframe homography for real-world speed & distance estimation
 
 import cv2
 import numpy as np
+import os
+from datetime import datetime, timedelta, timezone
 
 from tracking_processor_optimized import OptimizedTrackingProcessor
 from video_renderer import VideoRenderer
@@ -16,6 +18,7 @@ from speed_and_distance_estimator import (
     SpeedAndDistance_Estimator
 )
 from foul_risk_estimator import FoulRiskEstimator
+from db_connect import KicksenseDB
 
 # ============================================================
 # CONFIGURATION
@@ -28,6 +31,73 @@ OUTPUT_VIDEO_PATH = "video_results/advanced_player_tracking_output.mp4"
 STATS_CSV_PATH = "video_results/player_stats_advanced.csv"
 
 DISPLAY_SIZE = (900, 600)
+SPRINT_THRESHOLD_MS = 7.0  # ~25.2 km/h
+
+
+def load_db_config():
+    """Load TimescaleDB config from environment with local defaults."""
+    return {
+        "host": os.getenv("DB_HOST", "127.0.0.1"),
+        "port": int(os.getenv("DB_PORT", "5432")),
+        "dbname": os.getenv("DB_NAME", "kicksense"),
+        "user": os.getenv("DB_USER", "postgres"),
+        "password": os.getenv("DB_PASSWORD", "password123"),
+    }
+
+
+def persist_results_to_db(tracks, player_stats, foul_risk_map, fps, total_frames, match_id=1):
+    """
+    Persist frame-level tracking rows + aggregated player stats to TimescaleDB.
+    CSV export is still kept as primary validation output.
+    """
+    db = KicksenseDB(load_db_config())
+    if not db.conn:
+        print("⚠️ Skipping DB write: TimescaleDB connection unavailable.")
+        return
+
+    try:
+        db.ensure_tables()
+        db.clear_match_data(match_id=match_id)
+
+        start_ts = datetime.now(timezone.utc)
+        safe_fps = max(1, int(fps))
+
+        for frame_idx in range(total_frames):
+            timestamp = start_ts + timedelta(seconds=frame_idx / safe_fps)
+            detections = []
+
+            for object_name in ("players", "goalkeepers"):
+                frame_data = tracks.get(object_name, {}).get(frame_idx, {})
+                for track_id, info in frame_data.items():
+                    pos = info.get("position_transformed")
+                    if pos is None:
+                        continue
+
+                    x_coord = float(pos[0])
+                    y_coord = float(pos[1])
+                    team_id = info.get("team_id")
+
+                    speed_kmh = float(info.get("speed") or 0.0)
+                    speed_ms = speed_kmh / 3.6
+                    is_sprinting = speed_ms >= SPRINT_THRESHOLD_MS
+
+                    detections.append((
+                        int(track_id),
+                        team_id,
+                        x_coord,
+                        y_coord,
+                        speed_ms,
+                        is_sprinting,
+                    ))
+
+            if detections:
+                db.add_frame_data(timestamp, detections, match_id=match_id)
+
+        db.flush()
+        db.upsert_player_stats(player_stats, foul_risk_map=foul_risk_map, match_id=match_id)
+        print("✅ TimescaleDB updated with tracking_data and player_match_stats")
+    finally:
+        db.close()
 
 # ============================================================
 # 🖱️ MANUAL POINT SELECTION TOOL
@@ -206,6 +276,15 @@ def main():
     )
 
     print(f"✅ Player statistics saved ({len(player_stats)} tracks)")
+    print("🗄️ Persisting analytics to TimescaleDB...")
+    persist_results_to_db(
+        tracks=tracks,
+        player_stats=player_stats,
+        foul_risk_map=foul_risk_map,
+        fps=fps,
+        total_frames=total_frames,
+        match_id=1,
+    )
 
     # --------------------------------------------------------
     # STEP 5: VIDEO RENDERING

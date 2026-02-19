@@ -1,15 +1,23 @@
 "use client"
 
-export function IdealFormation() {
-  const formationData = {
-    detectedFormation: "4-3-3",
-    convexHullArea: "1850 m²",
-    avgPlayerSpacing: "14.2 m",
-    teamWidth: "52 m",
-    teamDepth: "38 m",
-  }
+import { useEffect, useState } from "react"
 
-  const playerPositions = [
+type FormationData = {
+  detectedFormation: string
+  convexHullArea: number
+  avgPlayerSpacing: number
+  teamWidth: number
+  teamDepth: number
+}
+
+type PlayerPosition = {
+  x: string
+  y: string
+  number: number
+}
+
+export function IdealFormation() {
+  const fallbackPositions: PlayerPosition[] = [
     { x: "10%", y: "50%", number: 1 },
     { x: "25%", y: "20%", number: 2 },
     { x: "25%", y: "50%", number: 3 },
@@ -22,6 +30,39 @@ export function IdealFormation() {
     { x: "70%", y: "80%", number: 11 },
     { x: "85%", y: "50%", number: 9 },
   ]
+  const [formationData, setFormationData] = useState<FormationData>({
+    detectedFormation: "4-3-3",
+    convexHullArea: 1850,
+    avgPlayerSpacing: 14.2,
+    teamWidth: 52,
+    teamDepth: 38,
+  })
+  const [playerPositions, setPlayerPositions] = useState<PlayerPosition[]>(fallbackPositions)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/formation?match_id=1&team_id=0")
+        if (!res.ok) return
+        const data = await res.json()
+        if (data?.detectedFormation) {
+          setFormationData({
+            detectedFormation: String(data.detectedFormation),
+            convexHullArea: Number(data.convexHullArea || 0),
+            avgPlayerSpacing: Number(data.avgPlayerSpacing || 0),
+            teamWidth: Number(data.teamWidth || 0),
+            teamDepth: Number(data.teamDepth || 0),
+          })
+        }
+        if (Array.isArray(data?.playerPositions) && data.playerPositions.length > 0) {
+          setPlayerPositions(data.playerPositions)
+        }
+      } catch {
+        // Keep fallback values
+      }
+    }
+    load()
+  }, [])
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
@@ -35,10 +76,10 @@ export function IdealFormation() {
       {/* Formation Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Metric label="Detected Formation" value={formationData.detectedFormation} />
-        <Metric label="Convex Hull Area" value={formationData.convexHullArea} />
-        <Metric label="Avg Player Spacing" value={formationData.avgPlayerSpacing} />
-        <Metric label="Team Width" value={formationData.teamWidth} />
-        <Metric label="Team Depth" value={formationData.teamDepth} />
+        <Metric label="Convex Hull Area" value={`${formationData.convexHullArea.toFixed(2)} m²`} />
+        <Metric label="Avg Player Spacing" value={`${formationData.avgPlayerSpacing.toFixed(2)} m`} />
+        <Metric label="Team Width" value={`${formationData.teamWidth.toFixed(2)} m`} />
+        <Metric label="Team Depth" value={`${formationData.teamDepth.toFixed(2)} m`} />
       </div>
 
       {/* Tactical Shape Visualization */}
