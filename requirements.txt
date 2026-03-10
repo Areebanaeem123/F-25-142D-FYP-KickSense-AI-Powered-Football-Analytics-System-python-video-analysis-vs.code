@@ -1,0 +1,11 @@
+opencv-python
+numpy
+scikit-learn
+torch
+torchvision
+transformers
+ultralytics
+deep-sort-realtime
+Pillow
+psycopg2-binary
+scipy
