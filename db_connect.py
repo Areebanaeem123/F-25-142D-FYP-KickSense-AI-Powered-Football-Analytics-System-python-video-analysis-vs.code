@@ -101,6 +101,7 @@ class KicksenseDB:
                 distance_m DOUBLE PRECISION,
                 angle_deg DOUBLE PRECISION,
                 power_ms DOUBLE PRECISION,
+                xg DOUBLE PRECISION DEFAULT 0.0,
                 is_on_target BOOLEAN,
                 is_goal BOOLEAN,
                 x_origin DOUBLE PRECISION,
@@ -114,6 +115,7 @@ class KicksenseDB:
             ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS shot_accuracy DOUBLE PRECISION DEFAULT 0.0;
             ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS avg_shot_distance_m DOUBLE PRECISION DEFAULT 0.0;
             ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS max_shot_power_ms DOUBLE PRECISION DEFAULT 0.0;
+            ALTER TABLE shot_events ADD COLUMN IF NOT EXISTS xg DOUBLE PRECISION DEFAULT 0.0;
 
 
             CREATE TABLE IF NOT EXISTS team_dribbling_stats (
@@ -349,7 +351,7 @@ class KicksenseDB:
         if shot_events:
             event_query = """
                 INSERT INTO shot_events
-                (match_id, track_id, team_id, frame_idx, time, distance_m, angle_deg, power_ms, is_on_target, is_goal, x_origin, y_origin)
+                (match_id, track_id, team_id, frame_idx, time, distance_m, angle_deg, power_ms, xg, is_on_target, is_goal, x_origin, y_origin)
                 VALUES %s
             """
             rows = []
@@ -364,6 +366,7 @@ class KicksenseDB:
                     shot.distance_to_goal_m,
                     shot.angle_to_goal_deg,
                     shot.max_velocity_ms,
+                    shot.xg,
                     shot.is_on_target,
                     shot.is_goal,
                     shot.origin_pos[0],

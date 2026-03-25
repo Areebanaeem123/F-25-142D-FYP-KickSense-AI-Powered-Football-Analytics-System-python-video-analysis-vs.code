@@ -19,6 +19,7 @@ import {
 } from "recharts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PlayerShotChart } from "./panels/player-shot-chart"
 
 interface PlayerStat {
   Track_ID: number
@@ -256,6 +257,22 @@ export function IndividualPlayerStats() {
           </CardContent>
         </Card>
       </div>
+
+      {selectedPlayer !== "all" && selectedPlayerStats && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <Card className="glass border-[#14B871]/10">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-bold text-[#e8f5ee]">Advanced Shooting Analysis</CardTitle>
+                <CardDescription className="text-[#9cb8a9]">Detailed event breakdown and xG tracking for Player {selectedPlayerStats.Track_ID}</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <PlayerShotChart playerId={selectedPlayerStats.Track_ID} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card className="glass border-[#14B871]/10">
         <CardHeader>

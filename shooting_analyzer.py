@@ -18,6 +18,7 @@ class ShotEvent:
         self.max_velocity_ms = 0.0
         self.distance_to_goal_m = 0.0
         self.angle_to_goal_deg = 0.0
+        self.xg = 0.0
         self.is_on_target = False
         self.is_goal = False
         self.trajectory: List[Tuple[float, float]] = [origin_pos]
@@ -144,6 +145,23 @@ class ShootingAnalyzer:
         dy = target_center[1] - origin[1]
         shot.distance_to_goal_m = math.sqrt(dx**2 + dy**2)
         shot.angle_to_goal_deg = math.degrees(math.atan2(abs(dy), abs(dx)))
+        
+        # Calculate xG (Expected Goals)
+        # Based on angle subtended by the 7.32m goalmouth
+        # v1: vector to top post, v2: vector to bottom post
+        v1 = (target_center[0] - origin[0], (self.goal_width / 2) - origin[1])
+        v2 = (target_center[0] - origin[0], (-self.goal_width / 2) - origin[1])
+        
+        mag1 = math.sqrt(v1[0]**2 + v1[1]**2)
+        mag2 = math.sqrt(v2[0]**2 + v2[1]**2)
+        dot = v1[0]*v2[0] + v1[1]*v2[1]
+        
+        # Subtended angle in radians
+        theta = math.acos(max(-1.0, min(1.0, dot / (mag1 * mag2 + 1e-6))))
+        
+        # Simple heuristic: xG proportional to subtended angle, adjusted for distance
+        # A 0.3 rad (~17 deg) shot from 10m center is roughly 0.15-0.20 xG
+        shot.xg = min(0.95, max(0.01, (theta / math.pi) * 2.0 * math.exp(-0.02 * shot.distance_to_goal_m)))
         
         # Simple trajectory prediction (Linear)
         # We look at the next few frames to get a stable direction

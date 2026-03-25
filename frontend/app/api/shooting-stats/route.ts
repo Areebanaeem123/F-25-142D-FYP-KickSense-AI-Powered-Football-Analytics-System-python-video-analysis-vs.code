@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 export const runtime = "nodejs"
 
-async function readShootingEvents(matchId: number) {
+async function readShootingEvents(matchId: number, playerId: number | null = null) {
     const { Client } = await import("pg")
     const client = new Client({
         host: process.env.DB_HOST || "127.0.0.1",
@@ -13,8 +13,7 @@ async function readShootingEvents(matchId: number) {
     })
     await client.connect()
     try {
-        const result = await client.query(
-            `
+        let query = `
       SELECT
         shot_id,
         track_id,
@@ -24,16 +23,24 @@ async function readShootingEvents(matchId: number) {
         distance_m,
         angle_deg,
         power_ms,
+        xg,
         is_on_target,
         is_goal,
         x_origin,
         y_origin
       FROM shot_events
       WHERE match_id = $1
-      ORDER BY frame_idx ASC
-      `,
-            [matchId]
-        )
+      `
+        const params: any[] = [matchId]
+
+        if (playerId !== null) {
+            query += ` AND track_id = $2`
+            params.push(playerId)
+        }
+
+        query += ` ORDER BY frame_idx ASC`
+
+        const result = await client.query(query, params)
         return result.rows
     } finally {
         await client.end()
@@ -43,9 +50,10 @@ async function readShootingEvents(matchId: number) {
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const matchId = Number(searchParams.get("match_id") || 1)
+    const playerId = searchParams.get("player_id") ? Number(searchParams.get("player_id")) : null
 
     try {
-        const events = await readShootingEvents(matchId)
+        const events = await readShootingEvents(matchId, playerId)
         return NextResponse.json(events)
     } catch (error) {
         console.error("Error loading shooting events:", error)
