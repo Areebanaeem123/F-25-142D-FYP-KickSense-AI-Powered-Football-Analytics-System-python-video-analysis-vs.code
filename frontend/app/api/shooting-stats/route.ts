@@ -26,8 +26,10 @@ async function readShootingEvents(matchId: number, playerId: number | null = nul
         xg,
         is_on_target,
         is_goal,
+        is_big_chance,
         x_origin,
-        y_origin
+        y_origin,
+        trajectory
       FROM shot_events
       WHERE match_id = $1
       `

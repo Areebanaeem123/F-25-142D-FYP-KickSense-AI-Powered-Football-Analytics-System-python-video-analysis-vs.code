@@ -5,10 +5,15 @@ import { SidebarNav } from "@/components/sidebar-nav"
 import { IndividualPlayerStats } from "@/components/individual-player-stats"
 import { DribblingStats } from "@/components/panels/dribbling-stats"
 import { ShootingStats } from "@/components/panels/shooting-stats"
+import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard"
+import { ReportPage } from "@/components/panels/report-page"
+import { MatchReplay } from "@/components/panels/match-replay"
+import { Login } from "@/components/auth/Login"
+import { Signup } from "@/components/auth/Signup"
 
 
 export function Dashboard() {
-  const [activeTab, setActiveTab] = useState("player-stats")
+  const [activeTab, setActiveTab] = useState("match-replay")
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const renderPanel = () => {
@@ -17,7 +22,18 @@ export function Dashboard() {
         return <DribblingStats />
       case "shooting":
         return <ShootingStats />
+      case "match-replay":
+        return <MatchReplay />
+      case "substitution-alerts":
+        return <AnalyticsDashboard initialTab="substitution" />
+      case "generate-report":
+        return <ReportPage />
       case "player-stats":
+        return <IndividualPlayerStats />
+      case "login":
+        return <Login />
+      case "signup":
+        return <Signup />
       default:
         return <IndividualPlayerStats />
     }
@@ -61,45 +77,33 @@ export function Dashboard() {
                 {activeTab === "player-stats" && "Individual Player Stats"}
                 {activeTab === "dribbling" && "Dribbling Effectiveness"}
                 {activeTab === "shooting" && "Shooting Statistics"}
+                {activeTab === "match-replay" && "Neural Match Analysis"}
                 {activeTab === "upload" && "Upload Video"}
                 {activeTab === "detection" && "Player Detection"}
                 {activeTab === "metrics" && "Performance Metrics"}
                 {activeTab === "team" && "Team Analysis"}
+                {activeTab === "substitution-alerts" && "Substitution Alerts"}
+                {activeTab === "generate-report" && "Match Intelligence Export"}
+                {activeTab === "login" && "Member Access"}
+                {activeTab === "signup" && "Join KickSense"}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Search */}
-            <div className="hidden sm:flex items-center gap-2 glass rounded-xl px-3 py-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9cb8a9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search..."
-                className="bg-transparent text-sm text-[#e8f5ee] placeholder:text-[#9cb8a9]/60 focus:outline-none w-40"
-              />
-            </div>
-
-            {/* Notifications */}
+          {/* Auth Buttons */}
+          <div className="flex items-center gap-2">
             <button
-              type="button"
-              className="relative flex h-9 w-9 items-center justify-center rounded-xl hover:bg-[#14B871]/10 transition-colors text-[#9cb8a9]"
-              aria-label="Notifications"
+              onClick={() => setActiveTab("login")}
+              className="px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white hover:text-[#006747] transition-all"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-[#14B871]" />
+              Login
             </button>
-
-            {/* Avatar */}
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14B871]/15 border border-[#14B871]/25 text-[#14B871] text-xs font-bold">
-              AC
-            </div>
+            <button
+              onClick={() => setActiveTab("signup")}
+              className="px-6 py-2.5 bg-[#006747] text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-[0_5px_15px_rgba(0,103,71,0.3)] hover:bg-[#006747]/90 active:scale-95 transition-all"
+            >
+              Register
+            </button>
           </div>
         </header>
 
@@ -108,6 +112,6 @@ export function Dashboard() {
           {renderPanel()}
         </div>
       </main>
-    </div>
+    </div >
   )
 }

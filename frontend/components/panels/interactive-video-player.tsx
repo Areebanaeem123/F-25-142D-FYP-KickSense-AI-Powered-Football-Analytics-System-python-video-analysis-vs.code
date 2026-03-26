@@ -92,13 +92,14 @@ export function InteractiveVideoPlayer({
             // Draw bounding box or circle
             ctx.beginPath()
             if (p.track_id === hoveredPlayer) {
-                ctx.strokeStyle = "#14B871"
-                ctx.lineWidth = 3
-                ctx.fillStyle = "rgba(20, 184, 113, 0.3)"
+                ctx.strokeStyle = "#006747"
+                ctx.lineWidth = 4
+                ctx.fillStyle = "rgba(0, 103, 71, 0.4)"
             } else {
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.5)"
+                ctx.strokeStyle = "white"
+                ctx.globalAlpha = 0.4
                 ctx.lineWidth = 1
-                ctx.fillStyle = "rgba(0, 0, 0, 0)"
+                ctx.fillStyle = "rgba(255, 255, 255, 0.05)"
             }
 
             // Draw bottom center marker (standard for player tracking)
@@ -108,10 +109,15 @@ export function InteractiveVideoPlayer({
 
             // Draw ID
             if (p.track_id === hoveredPlayer) {
+                ctx.globalAlpha = 1.0
                 ctx.fillStyle = "white"
-                ctx.font = "bold 12px Inter"
-                ctx.fillText(`P${p.track_id}`, x - 10, y - radius - 5)
+                ctx.font = "black 14px Inter"
+                ctx.shadowBlur = 10
+                ctx.shadowColor = "rgba(0,0,0,0.5)"
+                ctx.fillText(`PLAYER ${p.track_id}`, x - 25, y - radius - 10)
+                ctx.shadowBlur = 0
             }
+            ctx.globalAlpha = 1.0
         })
     }, [trackingData, hoveredPlayer])
 
@@ -221,28 +227,28 @@ export function InteractiveVideoPlayer({
 
             {/* Loading State */}
             {loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
-                    <Loader2 className="w-8 h-8 text-[#14B871] animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-20 backdrop-blur-md">
+                    <Loader2 className="w-10 h-10 text-[#006747] animate-spin" />
                 </div>
             )}
 
             {/* Controls Overlay (visible on hover or pause) */}
             <div
-                className={`absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity duration-300 pointer-events-none z-20 ${isPlaying ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+                className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-all duration-500 pointer-events-none z-20 ${isPlaying ? "opacity-0 group-hover:opacity-100" : "opacity-100"
                     }`}
             >
                 {!isPlaying && !loading && (
-                    <div className="w-16 h-16 rounded-full bg-[#14B871]/90 flex items-center justify-center shadow-lg backdrop-blur-sm pointer-events-auto cursor-pointer transition-transform hover:scale-110" onClick={togglePlay}>
-                        <Play fill="white" className="w-8 h-8 text-white ml-1" />
+                    <div className="w-20 h-20 rounded-full bg-[#006747] flex items-center justify-center shadow-[0_0_40px_rgba(0,103,71,0.5)] pointer-events-auto cursor-pointer transition-transform hover:scale-110 active:scale-95" onClick={togglePlay}>
+                        <Play fill="white" className="w-8 h-8 text-white ml-2 scale-125" />
                     </div>
                 )}
             </div>
 
             {/* Bottom Bar */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black to-transparent z-30 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
                 <div className="flex items-center justify-between pointer-events-auto">
-                    <button onClick={togglePlay} className="text-white hover:text-[#14B871] transition-colors">
-                        {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+                    <button onClick={togglePlay} className="text-white hover:text-[#006747] transition-all transform hover:scale-110">
+                        {isPlaying ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7" />}
                     </button>
                     <div className="text-xs text-[#9cb8a9] font-mono">
                         {videoRef.current ? Math.round(videoRef.current.currentTime) : 0}s

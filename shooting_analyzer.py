@@ -21,6 +21,7 @@ class ShotEvent:
         self.xg = 0.0
         self.is_on_target = False
         self.is_goal = False
+        self.is_big_chance = False
         self.trajectory: List[Tuple[float, float]] = [origin_pos]
 
 class ShootingAnalyzer:
@@ -46,7 +47,7 @@ class ShootingAnalyzer:
         self.goal_width = 7.32
         
         # Thresholds
-        self.shot_velocity_threshold = 12.0 # m/s (approx 43 km/h minimum for a shot)
+        self.shot_velocity_threshold = 6.0 # m/s (approx 21.6 km/h)
         self.possession_buffer = 5 # frames to look back for last holder
         
         self.shot_events: List[ShotEvent] = []
@@ -163,13 +164,13 @@ class ShootingAnalyzer:
         # A 0.3 rad (~17 deg) shot from 10m center is roughly 0.15-0.20 xG
         shot.xg = min(0.95, max(0.01, (theta / math.pi) * 2.0 * math.exp(-0.02 * shot.distance_to_goal_m)))
         
-        # Simple trajectory prediction (Linear)
-        # We look at the next few frames to get a stable direction
-        next_frames = frame_indices[start_idx : start_idx + 5]
-        path = [origin]
+        # Capture trajectory (more points for smoother visualization)
+        next_frames = frame_indices[start_idx : start_idx + 15] # Look ahead 15 frames (~0.5s)
         for nf in next_frames:
             if nf in history and history[nf]['pos']:
-                path.append(history[nf]['pos'])
+                shot.trajectory.append(history[nf]['pos'])
+        
+        path = shot.trajectory
         
         if len(path) >= 2:
             # Vector from start to end of sampled path
@@ -185,9 +186,13 @@ class ShootingAnalyzer:
                     if abs(intersect_y - target_center[1]) < self.goal_width / 2:
                         shot.is_on_target = True
                         # Simple Goal detection proxy: if it gets very close to center
-                        if abs(intersect_y - target_center[1]) < 1.0 and shot.distance_to_goal_m < 25.0:
+                        if abs(intersect_y - target_center[1]) < 2.0 and shot.distance_to_goal_m < 35.0:
                              # Guestimate: consider it a goal if it's dead-center and within range
                              shot.is_goal = True
+
+        # Big Chance Missed: High xG but not a goal
+        if shot.xg > 0.3 and not shot.is_goal:
+            shot.is_big_chance = True
                              
         return shot
 

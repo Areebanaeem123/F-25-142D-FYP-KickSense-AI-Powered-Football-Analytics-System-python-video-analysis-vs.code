@@ -1,6 +1,7 @@
 import psycopg2
 from psycopg2.extras import execute_values
 from typing import Dict
+import json
 
 class KicksenseDB:
     def __init__(self, db_config):
@@ -87,6 +88,7 @@ class KicksenseDB:
                 shot_accuracy DOUBLE PRECISION DEFAULT 0.0,
                 avg_shot_distance_m DOUBLE PRECISION DEFAULT 0.0,
                 max_shot_power_ms DOUBLE PRECISION DEFAULT 0.0,
+                sub_priority DOUBLE PRECISION DEFAULT 0.0,
                 updated_at TIMESTAMPTZ DEFAULT NOW(),
                 PRIMARY KEY (match_id, track_id)
             );
@@ -104,8 +106,10 @@ class KicksenseDB:
                 xg DOUBLE PRECISION DEFAULT 0.0,
                 is_on_target BOOLEAN,
                 is_goal BOOLEAN,
+                is_big_chance BOOLEAN DEFAULT FALSE,
                 x_origin DOUBLE PRECISION,
-                y_origin DOUBLE PRECISION
+                y_origin DOUBLE PRECISION,
+                trajectory JSONB
             );
 
             -- Ensure columns exist in player_match_stats (for schema evolution)
@@ -115,7 +119,10 @@ class KicksenseDB:
             ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS shot_accuracy DOUBLE PRECISION DEFAULT 0.0;
             ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS avg_shot_distance_m DOUBLE PRECISION DEFAULT 0.0;
             ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS max_shot_power_ms DOUBLE PRECISION DEFAULT 0.0;
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS sub_priority DOUBLE PRECISION DEFAULT 0.0;
             ALTER TABLE shot_events ADD COLUMN IF NOT EXISTS xg DOUBLE PRECISION DEFAULT 0.0;
+            ALTER TABLE shot_events ADD COLUMN IF NOT EXISTS is_big_chance BOOLEAN DEFAULT FALSE;
+            ALTER TABLE shot_events ADD COLUMN IF NOT EXISTS trajectory JSONB;
 
 
             CREATE TABLE IF NOT EXISTS team_dribbling_stats (
@@ -223,12 +230,13 @@ class KicksenseDB:
                 float(foul.get("red_likelihood")) if foul.get("red_likelihood") is not None else None,
                 foul.get("card_prediction"),
                 int(foul.get("contact_events", 0)) if foul else 0,
+                float(item.get("sub_priority", 0.0))
             ))
         query = """
             INSERT INTO player_match_stats
             (
                 match_id, track_id, team_id, class, max_speed_kmh, avg_speed_kmh, total_distance_m,
-                foul_risk, yellow_likelihood, red_likelihood, card_prediction, contact_events
+                foul_risk, yellow_likelihood, red_likelihood, card_prediction, contact_events, sub_priority
             )
             VALUES %s
             ON CONFLICT (match_id, track_id)
@@ -243,6 +251,7 @@ class KicksenseDB:
                 red_likelihood = EXCLUDED.red_likelihood,
                 card_prediction = EXCLUDED.card_prediction,
                 contact_events = EXCLUDED.contact_events,
+                sub_priority = EXCLUDED.sub_priority,
                 updated_at = NOW()
         """
         try:
@@ -351,7 +360,7 @@ class KicksenseDB:
         if shot_events:
             event_query = """
                 INSERT INTO shot_events
-                (match_id, track_id, team_id, frame_idx, time, distance_m, angle_deg, power_ms, xg, is_on_target, is_goal, x_origin, y_origin)
+                (match_id, track_id, team_id, frame_idx, time, distance_m, angle_deg, power_ms, xg, is_on_target, is_goal, is_big_chance, x_origin, y_origin, trajectory)
                 VALUES %s
             """
             rows = []
@@ -369,8 +378,10 @@ class KicksenseDB:
                     shot.xg,
                     shot.is_on_target,
                     shot.is_goal,
+                    getattr(shot, 'is_big_chance', False),
                     shot.origin_pos[0],
-                    shot.origin_pos[1]
+                    shot.origin_pos[1],
+                    json.dumps(getattr(shot, 'trajectory', []))
                 ))
             try:
                 execute_values(self.cursor, event_query, rows)

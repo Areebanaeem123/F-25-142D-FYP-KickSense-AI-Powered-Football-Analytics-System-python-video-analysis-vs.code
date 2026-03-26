@@ -156,8 +156,8 @@ export function IndividualPlayerStats() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-[#e8f5ee] tracking-tight">Player Analytics</h1>
-          <p className="text-[#9cb8a9] text-sm mt-1">Real-world speed, distance, and shooting metrics</p>
+          <h1 className="text-4xl font-black text-white tracking-tighter uppercase">Player Performance</h1>
+          <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-2 leading-none">Speed, distance, and precision intelligence</p>
         </div>
         <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
           <SelectTrigger className="w-[200px] glass">
@@ -175,42 +175,42 @@ export function IndividualPlayerStats() {
       </div>
 
       {selectedPlayer !== "all" && selectedPlayerStats && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 animate-in fade-in duration-500">
-          <Card className="glass border-[#14B871]/20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-700">
+          <Card className="glass border-white/5 bg-black/40">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-[#9cb8a9]">Max Speed</CardTitle>
+              <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest">Max Speed</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#e8f5ee]">{selectedPlayerStats.Max_Speed_kmh.toFixed(2)} km/h</div>
+              <div className="text-3xl font-black text-white">{selectedPlayerStats.Max_Speed_kmh.toFixed(1)} <span className="text-sm font-bold text-white/20">km/h</span></div>
             </CardContent>
           </Card>
 
-          <Card className="glass border-[#14B871]/20">
+          <Card className="glass border-white/5 bg-black/40">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-[#9cb8a9]">Avg Speed</CardTitle>
+              <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest">Avg Speed</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#e8f5ee]">{selectedPlayerStats.Avg_Speed_kmh.toFixed(2)} km/h</div>
+              <div className="text-3xl font-black text-white">{selectedPlayerStats.Avg_Speed_kmh.toFixed(1)} <span className="text-sm font-bold text-white/20">km/h</span></div>
             </CardContent>
           </Card>
 
-          <Card className="glass border-[#14B871]/20">
+          <Card className="glass border-white/5 bg-black/40">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-[#9cb8a9]">Total Distance</CardTitle>
+              <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest">Total Distance</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#e8f5ee]">{selectedPlayerStats.Total_Distance_m.toFixed(2)} m</div>
+              <div className="text-3xl font-black text-white">{selectedPlayerStats.Total_Distance_m.toFixed(1)} <span className="text-sm font-bold text-white/20">m</span></div>
             </CardContent>
           </Card>
 
-          <Card className="glass border-[#14B871]/20">
+          <Card className="glass border-white/5 bg-black/40">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-[#9cb8a9]">Shooting</CardTitle>
+              <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest">Efficiency</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#14B871]">{selectedPlayerStats.Goals} Goals</div>
-              <p className="text-[10px] text-[#9cb8a9] mt-1">
-                {selectedPlayerStats.Shots_On_Target}/{selectedPlayerStats.Shots_Total} on target ({selectedPlayerStats.Shot_Accuracy?.toFixed(1)}%)
+              <div className="text-3xl font-black text-[#006747]">{selectedPlayerStats.Goals} <span className="text-sm font-bold text-white/20">Goals</span></div>
+              <p className="text-[10px] text-white/30 font-bold mt-1 uppercase tracking-tighter">
+                {selectedPlayerStats.Shots_On_Target} / {selectedPlayerStats.Shots_Total} SOT • {selectedPlayerStats.Shot_Accuracy?.toFixed(0)}%
               </p>
             </CardContent>
           </Card>
@@ -218,39 +218,43 @@ export function IndividualPlayerStats() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="glass border-[#14B871]/10">
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold text-[#e8f5ee]">Speed Comparison</CardTitle>
+        <Card className="glass border-white/5">
+          <CardHeader className="border-b border-white/5 py-4">
+            <CardTitle className="text-xs font-black text-white uppercase tracking-widest">Velocity Comparison</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={speedComparisonData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#14B871" vertical={false} opacity={0.1} />
-                  <XAxis dataKey="name" stroke="#9cb8a9" fontSize={10} angle={-45} textAnchor="end" height={60} />
-                  <YAxis stroke="#9cb8a9" fontSize={10} />
-                  <Tooltip contentStyle={{ backgroundColor: "#050F0C", border: "1px solid #14B87140", borderRadius: "8px" }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="white" vertical={false} opacity={0.05} />
+                  <XAxis dataKey="name" stroke="white" opacity={0.4} fontSize={10} angle={-45} textAnchor="end" height={60} axisLine={false} tickLine={false} />
+                  <YAxis stroke="white" opacity={0.4} fontSize={10} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
+                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  />
                   <Legend iconType="circle" />
-                  <Bar dataKey="maxSpeed" fill="#14B871" name="Max Speed" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="avgSpeed" fill="#3b82f6" name="Avg Speed" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="maxSpeed" fill="#006747" name="Max Speed" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="avgSpeed" fill="#3b82f6" name="Avg Speed" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass border-[#14B871]/10">
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold text-[#e8f5ee]">Performance Overview</CardTitle>
+        <Card className="glass border-white/5">
+          <CardHeader className="border-b border-white/5 py-4">
+            <CardTitle className="text-xs font-black text-white uppercase tracking-widest">Performance Radar</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={performanceRadarData}>
-                  <PolarGrid stroke="#14B87140" />
-                  <PolarAngleAxis dataKey="player" tick={{ fill: '#9cb8a9', fontSize: 10 }} />
-                  <Radar name="Max Speed" dataKey="maxSpeed" stroke="#14B871" fill="#14B871" fillOpacity={0.5} />
-                  <Radar name="Avg Speed" dataKey="avgSpeed" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
+                  <PolarGrid stroke="white" opacity={0.05} />
+                  <PolarAngleAxis dataKey="player" tick={{ fill: 'white', opacity: 0.4, fontSize: 10, fontWeight: "bold" }} />
+                  <Radar name="Max Speed" dataKey="maxSpeed" stroke="#006747" fill="#006747" fillOpacity={0.4} />
+                  <Radar name="Avg Speed" dataKey="avgSpeed" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
+                  <Tooltip contentStyle={{ backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -260,14 +264,14 @@ export function IndividualPlayerStats() {
 
       {selectedPlayer !== "all" && selectedPlayerStats && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <Card className="glass border-[#14B871]/10">
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className="glass border-white/5 border-l-4 border-l-[#006747]">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 py-6">
               <div>
-                <CardTitle className="text-lg font-bold text-[#e8f5ee]">Advanced Shooting Analysis</CardTitle>
-                <CardDescription className="text-[#9cb8a9]">Detailed event breakdown and xG tracking for Player {selectedPlayerStats.Track_ID}</CardDescription>
+                <CardTitle className="text-xl font-black text-white uppercase tracking-tighter">Advanced Precision Analysis</CardTitle>
+                <CardDescription className="text-white/30 text-[10px] uppercase font-bold tracking-widest mt-1">Detailed event breakdown and trajectory intelligence</CardDescription>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               <PlayerShotChart playerId={selectedPlayerStats.Track_ID} />
             </CardContent>
           </Card>

@@ -43,8 +43,8 @@ export function UploadVideoPanel() {
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#e8f5ee]">Upload Video</h1>
-        <p className="mt-1 text-sm text-[#9cb8a9]">Upload match footage for AI-powered analysis</p>
+        <h1 className="text-4xl font-black text-white tracking-tighter uppercase">Direct Upload</h1>
+        <p className="mt-2 text-sm text-white/40 font-bold uppercase tracking-widest leading-none">Ingest match footage for AI-powered intelligence</p>
       </div>
 
       {/* Drop zone */}
@@ -62,11 +62,10 @@ export function UploadVideoPanel() {
         role="button"
         tabIndex={0}
         aria-label="Drop zone for video upload"
-        className={`glass-card cursor-pointer rounded-2xl p-12 text-center transition-all duration-300 ${
-          isDragging
-            ? "border-[#14B871]/50 bg-[#14B871]/10 scale-[1.01]"
-            : ""
-        }`}
+        className={`glass-card cursor-pointer rounded-3xl p-16 text-center transition-all duration-500 border-2 border-dashed ${isDragging
+            ? "border-[#006747] bg-[#006747]/10 scale-[1.01]"
+            : "border-white/5 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+          }`}
       >
         <input
           ref={inputRef}
@@ -78,8 +77,8 @@ export function UploadVideoPanel() {
         />
 
         <div className="flex flex-col items-center gap-4">
-          <div className={`flex h-20 w-20 items-center justify-center rounded-2xl bg-[#14B871]/10 border border-[#14B871]/20 ${isDragging ? "animate-pulse-icon" : ""}`}>
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#14B871" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <div className={`flex h-24 w-24 items-center justify-center rounded-3xl bg-[#006747]/10 border border-[#006747]/20 shadow-2xl ${isDragging ? "animate-pulse" : ""}`}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#006747" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="17 8 12 3 7 8" />
               <line x1="12" y1="3" x2="12" y2="15" />
@@ -110,37 +109,37 @@ export function UploadVideoPanel() {
       {file && (
         <div className="animate-slide-up flex flex-col gap-4">
           {uploading ? (
-            <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-5 w-5 border-2 border-[#14B871] border-t-transparent rounded-full" style={{ animation: "spin 1s linear infinite" }} />
-                  <span className="text-sm font-medium text-[#e8f5ee]">
-                    {progress < 100 ? "Uploading..." : "Processing complete"}
+            <div className="glass-card rounded-3xl p-8 border-white/5 bg-black/60 shadow-2xl animate-fade-in">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-6 w-6 border-[3px] border-[#006747] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm font-black text-white uppercase tracking-widest">
+                    {progress < 100 ? "Syncing Logic..." : "Data Normalized"}
                   </span>
                 </div>
-                <span className="text-sm font-bold text-[#14B871]">{progress}%</span>
+                <span className="text-sm font-black text-[#006747] tabular-nums">{progress}%</span>
               </div>
-              <div className="h-2 w-full rounded-full bg-[#0A3D2C]/80 overflow-hidden">
+              <div className="h-3 w-full rounded-full bg-white/5 overflow-hidden p-0.5 border border-white/5">
                 <div
-                  className="h-full rounded-full transition-all duration-200"
+                  className="h-full rounded-full transition-all duration-500 shadow-[0_0_15px_#006747]"
                   style={{
                     width: `${progress}%`,
-                    background: "linear-gradient(90deg, #14B871, #0ea860)",
+                    background: "#006747",
                   }}
                 />
               </div>
             </div>
           ) : progress === 100 ? (
-            <div className="glass-card rounded-2xl p-6 border-[#14B871]/30">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#14B871]/15">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14B871" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <div className="glass-card rounded-3xl p-8 border-[#006747]/40 bg-[#006747]/5 shadow-2xl animate-in zoom-in-95 duration-500">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#006747] shadow-[0_0_20px_#006747]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[#14B871]">Upload complete</p>
-                  <p className="text-xs text-[#9cb8a9]">Your video is ready for analysis</p>
+                  <p className="text-base font-black text-white uppercase tracking-widest leading-none">Intelligence Locked</p>
+                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Ready for spatiotemporal analysis</p>
                 </div>
               </div>
             </div>
@@ -148,15 +147,14 @@ export function UploadVideoPanel() {
             <button
               type="button"
               onClick={simulateUpload}
-              className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-[#050F0C] transition-all duration-300 hover:scale-[1.02] animate-glow-pulse"
-              style={{ background: "linear-gradient(135deg, #14B871, #0ea860)" }}
+              className="inline-flex items-center justify-center gap-3 rounded-2xl px-8 py-5 text-sm font-black text-white transition-all duration-500 hover:scale-[1.02] bg-[#006747] shadow-[0_0_30px_rgba(0,103,71,0.3)] hover:shadow-[0_0_40px_rgba(0,103,71,0.5)] active:scale-[0.98] uppercase tracking-[0.2em]"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              Start Upload & Analysis
+              Initiate Neural Analysis
             </button>
           )}
         </div>
@@ -169,16 +167,16 @@ export function UploadVideoPanel() {
           { label: "Players Tracked", value: "2,841", icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" },
           { label: "Hours Processed", value: "342h", icon: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6v6l4 2" },
         ].map((stat) => (
-          <div key={stat.label} className="glass-card rounded-2xl p-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#14B871]/10 border border-[#14B871]/15">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14B871" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div key={stat.label} className="glass-card rounded-3xl p-6 border-white/5 bg-white/[0.02] group hover:bg-white/[0.04] transition-all duration-500">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#006747]/10 border border-[#006747]/20 group-hover:bg-[#006747]/20 transition-all">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#006747" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d={stat.icon} />
                 </svg>
               </div>
               <div>
-                <p className="text-xl font-bold text-[#e8f5ee]">{stat.value}</p>
-                <p className="text-xs text-[#9cb8a9]">{stat.label}</p>
+                <p className="text-2xl font-black text-white tabular-nums tracking-tighter">{stat.value}</p>
+                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">{stat.label}</p>
               </div>
             </div>
           </div>

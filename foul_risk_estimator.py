@@ -11,7 +11,7 @@ class FoulRiskEstimator:
     def __init__(
         self,
         fps: int,
-        contact_distance_m: float = 1.2,
+        contact_distance_m: float = 1.5,
         ball_distance_m: float = 2.0,
         speed_ref_kmh: float = 25.0,
         decel_ref_kmh_per_s: float = 6.0,

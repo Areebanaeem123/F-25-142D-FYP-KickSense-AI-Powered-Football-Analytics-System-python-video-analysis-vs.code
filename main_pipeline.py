@@ -22,6 +22,7 @@ from speed_and_distance_estimator import (
 from foul_risk_estimator import FoulRiskEstimator
 from dribbling_analyzer import DribblingAnalyzer
 from shooting_analyzer import ShootingAnalyzer
+from substitution_recommender import SubstitutionRecommender
 from db_connect import KicksenseDB
 
 
@@ -299,6 +300,15 @@ def main():
         stable_class_map,
         foul_risk_map=foul_risk_map
     )
+
+    print("📝 Calculating substitution recommendations...")
+    sub_recommender = SubstitutionRecommender()
+    sub_recommendations = sub_recommender.recommend(foul_risk_map)
+    
+    # Inject sub_priority into player_stats for persistence
+    for item in player_stats:
+        tid = int(item["track_id"])
+        item["sub_priority"] = sub_recommendations.get(tid, 0.0)
 
     print(f"✅ Player statistics saved ({len(player_stats)} tracks)")
     print("🗄️ Persisting analytics to TimescaleDB...")

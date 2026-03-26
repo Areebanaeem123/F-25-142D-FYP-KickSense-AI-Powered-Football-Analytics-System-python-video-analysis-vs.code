@@ -1,7 +1,7 @@
 "use client"
 
-import { PlayerAnalytics } from "@/components/player-analytics"
+import { IndividualPlayerStats } from "@/components/individual-player-stats"
 
 export default function AnalyticsPage() {
-  return <PlayerAnalytics />
+  return <IndividualPlayerStats />
 }

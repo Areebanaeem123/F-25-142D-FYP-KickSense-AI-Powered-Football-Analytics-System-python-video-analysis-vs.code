@@ -88,70 +88,70 @@ export function ShootingStats() {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="glass border-[#14B871]/20">
+                <Card className="glass border-white/5 bg-black/40">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-medium text-[#9cb8a9] flex items-center gap-2">
-                            <Activity className="w-3 h-3 text-[#14B871]" /> Total Shots
+                        <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest flex items-center gap-2">
+                            <Activity className="w-3 h-3 text-[#006747]" /> Total Shots
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-[#e8f5ee]">{totalShots}</div>
+                        <div className="text-3xl font-black text-white tabular-nums">{totalShots}</div>
                     </CardContent>
                 </Card>
 
-                <Card className="glass border-[#14B871]/20">
+                <Card className="glass border-white/5 bg-black/40">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-medium text-[#9cb8a9] flex items-center gap-2">
-                            <Target className="w-3 h-3 text-[#14B871]" /> Accuracy
+                        <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest flex items-center gap-2">
+                            <Target className="w-3 h-3 text-[#006747]" /> Accuracy
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-[#e8f5ee]">{accuracy.toFixed(1)}%</div>
-                        <p className="text-[10px] text-[#9cb8a9] mt-1">{onTarget} on target</p>
+                        <div className="text-3xl font-black text-white tabular-nums">{accuracy.toFixed(1)}%</div>
+                        <p className="text-[10px] text-white/20 font-bold mt-1 uppercase tracking-tighter">{onTarget} on target</p>
                     </CardContent>
                 </Card>
 
-                <Card className="glass border-[#14B871]/20">
+                <Card className="glass border-white/5 bg-black/40">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-medium text-[#9cb8a9] flex items-center gap-2">
-                            <Zap className="w-3 h-3 text-[#14B871]" /> Avg Power
+                        <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest flex items-center gap-2">
+                            <Zap className="w-3 h-3 text-[#006747]" /> Avg Power
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-[#e8f5ee]">{avgPower.toFixed(1)} m/s</div>
+                        <div className="text-3xl font-black text-white tabular-nums">{avgPower.toFixed(1)} <span className="text-sm font-bold text-white/20">m/s</span></div>
                     </CardContent>
                 </Card>
 
-                <Card className="glass border-[#14B871]/20">
+                <Card className="glass border-white/5 bg-black/40">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-medium text-[#9cb8a9] flex items-center gap-2">
-                            <span className="text-[#14B871]">⚽</span> Goals
+                        <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest flex items-center gap-2">
+                            <span className="text-[#006747]">⚽</span> Goals
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-[#e8f5ee]">{goals}</div>
+                        <div className="text-3xl font-black text-white tabular-nums">{goals}</div>
                     </CardContent>
                 </Card>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Power Distribution */}
-                <Card className="glass border-[#14B871]/10">
-                    <CardHeader>
-                        <CardTitle className="text-sm font-semibold text-[#e8f5ee]">Shot Power Distribution</CardTitle>
+                <Card className="glass border-white/5">
+                    <CardHeader className="border-b border-white/5 py-4">
+                        <CardTitle className="text-xs font-black text-white uppercase tracking-widest">Shot Power Distribution</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                         <div className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={powerBuckets}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#14B871" vertical={false} opacity={0.1} />
-                                    <XAxis dataKey="range" stroke="#9cb8a9" fontSize={10} />
-                                    <YAxis stroke="#9cb8a9" fontSize={10} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="white" vertical={false} opacity={0.05} />
+                                    <XAxis dataKey="range" stroke="white" fontSize={10} opacity={0.4} axisLine={false} tickLine={false} />
+                                    <YAxis stroke="white" fontSize={10} opacity={0.4} axisLine={false} tickLine={false} />
                                     <Tooltip
-                                        contentStyle={{ backgroundColor: "#050F0C", border: "1px solid #14B87140", borderRadius: "8px" }}
-                                        itemStyle={{ color: "#14B871" }}
+                                        contentStyle={{ backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
+                                        itemStyle={{ color: "#006747" }}
                                     />
-                                    <Bar dataKey="count" fill="#14B871" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="count" fill="#006747" radius={[6, 6, 0, 0]} barSize={40} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -159,9 +159,9 @@ export function ShootingStats() {
                 </Card>
 
                 {/* Shot Locations (Scatter Plot) */}
-                <Card className="glass border-[#14B871]/10">
-                    <CardHeader>
-                        <CardTitle className="text-sm font-semibold text-[#e8f5ee]">Shot Origins Map</CardTitle>
+                <Card className="glass border-white/5">
+                    <CardHeader className="border-b border-white/5 py-4">
+                        <CardTitle className="text-xs font-black text-white uppercase tracking-widest">Shot Origins Map</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="h-[300px] relative">
@@ -197,17 +197,27 @@ export function ShootingStats() {
                                         {shotEvents.map((entry, index) => (
                                             <Cell
                                                 key={`cell-${index}`}
-                                                fill={entry.is_goal ? '#14B871' : entry.is_on_target ? '#3b82f6' : '#ef4444'}
+                                                fill={entry.is_goal ? '#006747' : entry.is_on_target ? '#3b82f6' : '#ef4444'}
+                                                className="filter drop-shadow-lg"
                                             />
                                         ))}
                                     </Scatter>
                                 </ScatterChart>
                             </ResponsiveContainer>
                         </div>
-                        <div className="flex justify-center gap-4 mt-2 text-[10px]">
-                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#14B871]" /> Goal</div>
-                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#3b82f6]" /> On Target</div>
-                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#ef4444]" /> Off Target</div>
+                        <div className="flex justify-center gap-6 mt-4 pb-2">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-[#006747] shadow-[0_0_10px_#006747]" />
+                                <span className="text-[10px] font-black text-white uppercase tracking-tighter">Goal</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]" />
+                                <span className="text-[10px] font-black text-white/50 uppercase tracking-tighter">On Target</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
+                                <span className="text-[10px] font-black text-white/50 uppercase tracking-tighter">Off Target</span>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

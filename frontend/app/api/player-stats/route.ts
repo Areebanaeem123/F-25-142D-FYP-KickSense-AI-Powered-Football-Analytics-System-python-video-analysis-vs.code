@@ -20,6 +20,7 @@ async function readFromTimescale(matchId: number) {
       `
       SELECT
         track_id AS "Track_ID",
+        team_id AS "Team_ID",
         class AS "Class",
         max_speed_kmh AS "Max_Speed_kmh",
         avg_speed_kmh AS "Avg_Speed_kmh",
@@ -34,7 +35,8 @@ async function readFromTimescale(matchId: number) {
         goals AS "Goals",
         shot_accuracy AS "Shot_Accuracy",
         avg_shot_distance_m AS "Avg_Shot_Distance_m",
-        max_shot_power_ms AS "Max_Shot_Power_ms"
+        max_shot_power_ms AS "Max_Shot_Power_ms",
+        sub_priority AS "Sub_Priority"
       FROM player_match_stats
       WHERE match_id = $1
       ORDER BY track_id
