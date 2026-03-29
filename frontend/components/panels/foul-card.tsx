@@ -120,11 +120,11 @@ export function FoulCardAnalysis() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[#14B871]/10">
-              <th className="px-6 py-3 text-left text-xs text-[#9cb8a9] uppercase">Player</th>
-              <th className="px-6 py-3 text-left text-xs text-[#9cb8a9] uppercase">Shooting Accuracy (%)</th>
-              <th className="px-6 py-3 text-left text-xs text-[#9cb8a9] uppercase">Composure (%)</th>
-              <th className="px-6 py-3 text-left text-xs text-[#9cb8a9] uppercase">Conversion Rate (%)</th>
-              <th className="px-6 py-3 text-left text-xs text-[#9cb8a9] uppercase">Role Recommendation</th>
+              <th className="px-6 py-3 text-left text-sm text-[#9cb8a9]">Player</th>
+              <th className="px-6 py-3 text-left text-sm text-[#9cb8a9]">Shooting Accuracy (%)</th>
+              <th className="px-6 py-3 text-left text-sm text-[#9cb8a9]">Composure (%)</th>
+              <th className="px-6 py-3 text-left text-sm text-[#9cb8a9]">Conversion Rate (%)</th>
+              <th className="px-6 py-3 text-left text-sm text-[#9cb8a9]">Role Recommendation</th>
             </tr>
           </thead>
           <tbody>
@@ -145,7 +145,7 @@ export function FoulCardAnalysis() {
 
       {/* Radar Chart Example */}
       <div className="glass-card rounded-2xl p-6 h-[320px]">
-        <h3 className="text-sm font-semibold text-[#e8f5ee] mb-4">
+        <h3 className="text-base font-semibold text-[#e8f5ee] mb-4">
           Specialist Skill Profile (Top Candidate)
         </h3>
         <ResponsiveContainer width="100%" height="100%">
@@ -171,10 +171,10 @@ export function FoulCardAnalysis() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[#14B871]/10">
-              <th className="px-6 py-3 text-left text-xs text-[#9cb8a9] uppercase">Player</th>
-              <th className="px-6 py-3 text-left text-xs text-[#9cb8a9] uppercase">Yellow Card Probability (%)</th>
-              <th className="px-6 py-3 text-left text-xs text-[#9cb8a9] uppercase">Red Card Probability (%)</th>
-              <th className="px-6 py-3 text-left text-xs text-[#9cb8a9] uppercase">Risk Level</th>
+              <th className="px-6 py-3 text-left text-sm text-[#9cb8a9]">Player</th>
+              <th className="px-6 py-3 text-left text-sm text-[#9cb8a9]">Yellow Card Probability (%)</th>
+              <th className="px-6 py-3 text-left text-sm text-[#9cb8a9]">Red Card Probability (%)</th>
+              <th className="px-6 py-3 text-left text-sm text-[#9cb8a9]">Risk Level</th>
             </tr>
           </thead>
           <tbody>
@@ -194,7 +194,7 @@ export function FoulCardAnalysis() {
 
       {/* Bar Chart for Card Risk */}
       <div className="glass-card rounded-2xl p-6 h-[350px]">
-        <h3 className="text-sm font-semibold text-[#e8f5ee] mb-4">
+        <h3 className="text-base font-semibold text-[#e8f5ee] mb-4">
           Card Risk Comparison
         </h3>
         <ResponsiveContainer width="100%" height="100%">

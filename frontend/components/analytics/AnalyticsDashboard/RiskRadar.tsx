@@ -72,7 +72,7 @@ export function RiskRadar({ matchId = 1 }: RiskRadarProps) {
     return (
         <Card className="glass border-white/5">
             <CardHeader className="py-4 px-6 border-b border-white/5">
-                <CardTitle className="text-xs font-black text-white uppercase tracking-widest">Squad Disciplinary Profile</CardTitle>
+                <CardTitle className="text-xs font-black text-white tracking-widest">Squad Disciplinary Profile</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="h-[300px] w-full">

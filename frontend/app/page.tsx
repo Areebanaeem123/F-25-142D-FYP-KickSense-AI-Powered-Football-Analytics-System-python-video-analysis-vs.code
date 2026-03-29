@@ -8,7 +8,7 @@ export default function Page() {
   const [started, setStarted] = useState(false)
 
   if (started) {
-    return <Dashboard />
+    return <Dashboard onBack={() => setStarted(false)} />
   }
 
   return <Homepage onGetStarted={() => setStarted(true)} />

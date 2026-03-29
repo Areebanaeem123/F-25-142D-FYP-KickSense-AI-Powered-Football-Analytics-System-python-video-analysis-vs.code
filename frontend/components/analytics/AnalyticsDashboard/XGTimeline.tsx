@@ -78,7 +78,7 @@ export function XGTimeline({ matchId = 1 }: XGTimelineProps) {
     return (
         <Card className="glass border-[#14B871]/10">
             <CardHeader className="py-4 px-6 border-b border-white/5">
-                <CardTitle className="text-xs font-black text-white uppercase tracking-widest">Match Threat (Cumulative xG)</CardTitle>
+                <CardTitle className="text-xs font-black text-white tracking-widest">Match Threat (Cumulative xG)</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="h-[300px] w-full relative">

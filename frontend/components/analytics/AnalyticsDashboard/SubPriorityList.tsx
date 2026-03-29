@@ -56,10 +56,10 @@ export function SubPriorityList({ matchId = 1 }: { matchId?: number }) {
     return (
         <Card className="glass border-white/5">
             <CardHeader className="py-4 px-6 border-b border-white/5">
-                <CardTitle className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                <CardTitle className="text-xs font-black text-white tracking-widest flex items-center gap-2">
                     <UserMinus className="w-4 h-4 text-red-500" /> Strategic Substitutions
                 </CardTitle>
-                <CardDescription className="text-[10px] text-white/40 uppercase font-bold tracking-tighter mt-1">
+                <CardDescription className="text-[10px] text-white/40 font-bold tracking-tighter mt-1">
                     Prioritizing players with high disciplinary risk
                 </CardDescription>
             </CardHeader>
@@ -81,13 +81,13 @@ export function SubPriorityList({ matchId = 1 }: { matchId?: number }) {
                                     P{p.Track_ID}
                                 </div>
                                 <div>
-                                    <div className="text-xs font-black text-white uppercase tracking-wider">Player {p.Track_ID}</div>
-                                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-tighter">Team {p.Team_ID === 0 ? 'A' : 'B'} • {p.Card_Prediction}</div>
+                                    <div className="text-xs font-black text-white tracking-wider">Player {p.Track_ID}</div>
+                                    <div className="text-[10px] text-white/40 font-bold tracking-tighter">Team {p.Team_ID === 0 ? 'A' : 'B'} • {p.Card_Prediction}</div>
                                 </div>
                             </div>
 
                             <div className="text-right">
-                                <div className="text-[9px] text-white/30 uppercase font-black tracking-widest">Sub Priority</div>
+                                <div className="text-[9px] text-white/30 font-black tracking-widest">Sub Priority</div>
                                 <div className={`text-xl font-black leading-none ${p.Sub_Priority > 70 ? "text-red-500" : "text-white"
                                     }`}>
                                     {p.Sub_Priority.toFixed(0)}%

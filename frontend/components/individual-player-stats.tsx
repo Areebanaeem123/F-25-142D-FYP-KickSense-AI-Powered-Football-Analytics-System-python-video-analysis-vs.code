@@ -156,8 +156,8 @@ export function IndividualPlayerStats() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-4xl font-black text-white tracking-tighter uppercase">Player Performance</h1>
-          <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-2 leading-none">Speed, distance, and precision intelligence</p>
+          <h1 className="text-5xl font-black text-white tracking-tighter">Player Performance</h1>
+          <p className="text-white/40 text-base font-bold tracking-widest mt-2 leading-none">Speed, distance, and precision intelligence</p>
         </div>
         <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
           <SelectTrigger className="w-[200px] glass">
@@ -178,16 +178,16 @@ export function IndividualPlayerStats() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-700">
           <Card className="glass border-white/5 bg-black/40">
             <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest">Max Speed</CardTitle>
+              <CardTitle className="text-sm font-black text-white/30 tracking-widest">Max Speed</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-black text-white">{selectedPlayerStats.Max_Speed_kmh.toFixed(1)} <span className="text-sm font-bold text-white/20">km/h</span></div>
+              <div className="text-4xl font-black text-white">{selectedPlayerStats.Max_Speed_kmh.toFixed(1)} <span className="text-base font-bold text-white/20">km/h</span></div>
             </CardContent>
           </Card>
 
           <Card className="glass border-white/5 bg-black/40">
             <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest">Avg Speed</CardTitle>
+              <CardTitle className="text-xs font-black text-white/30 tracking-widest">Avg Speed</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-black text-white">{selectedPlayerStats.Avg_Speed_kmh.toFixed(1)} <span className="text-sm font-bold text-white/20">km/h</span></div>
@@ -196,7 +196,7 @@ export function IndividualPlayerStats() {
 
           <Card className="glass border-white/5 bg-black/40">
             <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest">Total Distance</CardTitle>
+              <CardTitle className="text-xs font-black text-white/30 tracking-widest">Total Distance</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-black text-white">{selectedPlayerStats.Total_Distance_m.toFixed(1)} <span className="text-sm font-bold text-white/20">m</span></div>
@@ -205,11 +205,11 @@ export function IndividualPlayerStats() {
 
           <Card className="glass border-white/5 bg-black/40">
             <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest">Efficiency</CardTitle>
+              <CardTitle className="text-sm font-black text-white/30 tracking-widest">Efficiency</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-black text-[#006747]">{selectedPlayerStats.Goals} <span className="text-sm font-bold text-white/20">Goals</span></div>
-              <p className="text-[10px] text-white/30 font-bold mt-1 uppercase tracking-tighter">
+              <div className="text-4xl font-black text-[#006747]">{selectedPlayerStats.Goals} <span className="text-base font-bold text-white/20">Goals</span></div>
+              <p className="text-sm text-white/30 font-bold mt-1 tracking-tighter">
                 {selectedPlayerStats.Shots_On_Target} / {selectedPlayerStats.Shots_Total} SOT • {selectedPlayerStats.Shot_Accuracy?.toFixed(0)}%
               </p>
             </CardContent>
@@ -220,15 +220,15 @@ export function IndividualPlayerStats() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="glass border-white/5">
           <CardHeader className="border-b border-white/5 py-4">
-            <CardTitle className="text-xs font-black text-white uppercase tracking-widest">Velocity Comparison</CardTitle>
+            <CardTitle className="text-base font-black text-white tracking-widest">Velocity Comparison</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={speedComparisonData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="white" vertical={false} opacity={0.05} />
-                  <XAxis dataKey="name" stroke="white" opacity={0.4} fontSize={10} angle={-45} textAnchor="end" height={60} axisLine={false} tickLine={false} />
-                  <YAxis stroke="white" opacity={0.4} fontSize={10} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="name" stroke="white" opacity={0.4} fontSize={12} angle={-45} textAnchor="end" height={60} axisLine={false} tickLine={false} />
+                  <YAxis stroke="white" opacity={0.4} fontSize={12} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
                     cursor={{ fill: 'rgba(255,255,255,0.05)' }}
@@ -244,14 +244,14 @@ export function IndividualPlayerStats() {
 
         <Card className="glass border-white/5">
           <CardHeader className="border-b border-white/5 py-4">
-            <CardTitle className="text-xs font-black text-white uppercase tracking-widest">Performance Radar</CardTitle>
+            <CardTitle className="text-base font-black text-white tracking-widest">Performance Radar</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={performanceRadarData}>
                   <PolarGrid stroke="white" opacity={0.05} />
-                  <PolarAngleAxis dataKey="player" tick={{ fill: 'white', opacity: 0.4, fontSize: 10, fontWeight: "bold" }} />
+                  <PolarAngleAxis dataKey="player" tick={{ fill: 'white', opacity: 0.4, fontSize: 12, fontWeight: "bold" }} />
                   <Radar name="Max Speed" dataKey="maxSpeed" stroke="#006747" fill="#006747" fillOpacity={0.4} />
                   <Radar name="Avg Speed" dataKey="avgSpeed" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} />
                   <Tooltip contentStyle={{ backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }} />
@@ -267,8 +267,8 @@ export function IndividualPlayerStats() {
           <Card className="glass border-white/5 border-l-4 border-l-[#006747]">
             <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 py-6">
               <div>
-                <CardTitle className="text-xl font-black text-white uppercase tracking-tighter">Advanced Precision Analysis</CardTitle>
-                <CardDescription className="text-white/30 text-[10px] uppercase font-bold tracking-widest mt-1">Detailed event breakdown and trajectory intelligence</CardDescription>
+                <CardTitle className="text-2xl font-black text-white tracking-tighter">Advanced Precision Analysis</CardTitle>
+                <CardDescription className="text-white/30 text-sm font-bold tracking-widest mt-1">Detailed event breakdown and trajectory intelligence</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="pt-6">
@@ -280,17 +280,17 @@ export function IndividualPlayerStats() {
 
       <Card className="glass border-[#14B871]/10">
         <CardHeader>
-          <CardTitle className="text-sm font-semibold text-[#e8f5ee]">All Players Summary</CardTitle>
+          <CardTitle className="text-lg font-semibold text-[#e8f5ee]">All Players Summary</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {playerStats.map((p, idx) => (
               <div key={p.Track_ID} className="glass p-4 rounded-xl border border-[#14B871]/10 hover:border-[#14B871]/40 transition-colors">
                 <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm font-bold text-[#e8f5ee]">Player {p.Track_ID}</span>
+                  <span className="text-lg font-bold text-[#e8f5ee]">Player {p.Track_ID}</span>
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
                 </div>
-                <div className="space-y-1 text-[11px] text-[#9cb8a9]">
+                <div className="space-y-1 text-base text-[#9cb8a9]">
                   <div className="flex justify-between"><span>Speed (Max/Avg):</span> <span className="text-[#e8f5ee]">{p.Max_Speed_kmh.toFixed(1)} / {p.Avg_Speed_kmh.toFixed(1)}</span></div>
                   <div className="flex justify-between"><span>Distance:</span> <span className="text-[#e8f5ee]">{p.Total_Distance_m.toFixed(1)} m</span></div>
                   <div className="flex justify-between font-bold text-[#e8f5ee]">
@@ -299,7 +299,7 @@ export function IndividualPlayerStats() {
                       {p.Foul_Risk !== undefined ? `${(p.Foul_Risk * 100).toFixed(0)}%` : "N/A"}
                     </span>
                   </div>
-                  <div className="flex justify-between text-[9px] italic mb-1">
+                  <div className="flex justify-between text-xs italic mb-1">
                     <span>Prediction:</span> <span>{p.Card_Prediction || "None"}</span>
                   </div>
                   <div className="flex justify-between border-t border-[#14B87120] pt-1 font-bold text-[#14B871]">

@@ -41,12 +41,12 @@ export function IdealSubstitution() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[#14B871]/10">
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#9cb8a9] uppercase tracking-wider">#</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#9cb8a9] uppercase tracking-wider">Player</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#9cb8a9] uppercase tracking-wider">Fatigue (%)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#9cb8a9] uppercase tracking-wider">Performance (%)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#9cb8a9] uppercase tracking-wider">Injury Risk (%)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[#9cb8a9] uppercase tracking-wider">Recommendation</th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-[#9cb8a9] tracking-wider">#</th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-[#9cb8a9] tracking-wider">Player</th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-[#9cb8a9] tracking-wider">Fatigue (%)</th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-[#9cb8a9] tracking-wider">Performance (%)</th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-[#9cb8a9] tracking-wider">Injury Risk (%)</th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-[#9cb8a9] tracking-wider">Recommendation</th>
               </tr>
             </thead>
             <tbody>
@@ -76,7 +76,7 @@ export function IdealSubstitution() {
 
       {/* Fatigue Bar Chart */}
       <div className="glass-card rounded-2xl p-6 h-[350px]">
-        <h3 className="text-sm font-semibold text-[#e8f5ee] mb-4">Top 5 Most Fatigued Players</h3>
+        <h3 className="text-base font-semibold text-[#e8f5ee] mb-4">Top 5 Most Fatigued Players</h3>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={players.sort((a, b) => b.fatigue - a.fatigue)}

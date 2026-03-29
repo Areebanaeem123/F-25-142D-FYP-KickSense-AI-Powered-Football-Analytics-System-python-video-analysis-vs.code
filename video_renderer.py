@@ -96,8 +96,16 @@ class VideoRenderer:
         if not self.cap.isOpened():
             raise RuntimeError(f"Could not open video: {self.video_path}")
         
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        self.out = cv2.VideoWriter(self.output_path, fourcc, fps, (width, height))
+        # Use 'avc1' (H.264) for web compatibility. If it fails, fallback to 'mp4v'
+        try:
+            fourcc = cv2.VideoWriter_fourcc(*'avc1')
+            self.out = cv2.VideoWriter(self.output_path, fourcc, fps, (width, height))
+            if not self.out.isOpened():
+                raise RuntimeError("avc1 failed")
+        except:
+            print("⚠️ 'avc1' codec not found, falling back to 'mp4v'. Note: 'mp4v' may not play in browsers.")
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            self.out = cv2.VideoWriter(self.output_path, fourcc, fps, (width, height))
         
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         frame_idx = 0

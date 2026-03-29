@@ -68,8 +68,8 @@ export function ShotMap({ playerId = "all", matchId = 1 }: ShotMapProps) {
     return (
         <Card className="glass border-[#14B871]/10 overflow-hidden">
             <CardHeader className="py-4 px-6 flex flex-row items-center justify-between border-b border-white/5">
-                <CardTitle className="text-xs font-black text-white uppercase tracking-widest">Live Ball Trajectories</CardTitle>
-                <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest">
+                <CardTitle className="text-xs font-black text-white tracking-widest">Live Ball Trajectories</CardTitle>
+                <div className="flex gap-4 text-[10px] font-bold tracking-widest">
                     <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#006747]" /> Goal</div>
                     <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#3b82f6]" /> On Target</div>
                     <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#ef4444]" /> Off Target</div>
@@ -112,7 +112,7 @@ export function ShotMap({ playerId = "all", matchId = 1 }: ShotMapProps) {
                                                 <div className="flex justify-between items-start mb-2">
                                                     <p className="text-sm font-bold text-[#e8f5ee]">Player {data.track_id}</p>
                                                     {data.is_big_chance && (
-                                                        <span className="bg-yellow-400/20 text-yellow-400 text-[8px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">Big Chance</span>
+                                                        <span className="bg-yellow-400/20 text-yellow-400 text-[8px] px-1.5 py-0.5 rounded font-bold tracking-tighter">Big Chance</span>
                                                     )}
                                                 </div>
                                                 <div className="space-y-1 text-[11px]">

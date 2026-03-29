@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import Image from "next/image"
 
 import { cn } from "@/lib/utils"
 
@@ -88,11 +89,13 @@ export function SidebarNav({
   onTabChange,
   isOpen,
   onToggle,
+  onLogoClick,
 }: {
   activeTab: string
   onTabChange: (id: string) => void
   isOpen: boolean
   onToggle: () => void
+  onLogoClick: () => void
 }) {
   return (
     <>
@@ -108,22 +111,28 @@ export function SidebarNav({
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 flex h-screen w-72 flex-col glass-strong transition-transform duration-300 md:relative md:translate-x-0",
+          "fixed left-0 top-0 z-40 flex h-screen w-72 flex-col bg-[#040a08] border-r border-[#14B871]/10 transition-transform duration-300 md:relative md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-8 border-b border-white/5">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#006747] shadow-[0_0_20px_rgba(0,103,71,0.3)]">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg>
+        <button 
+          onClick={onLogoClick}
+          className="flex flex-col items-center gap-2 px-6 py-10 border-b border-white/5 hover:bg-white/5 transition-all group w-full text-left"
+        >
+          <div className="relative h-16 w-full max-w-[200px] overflow-hidden group-hover:scale-105 transition-transform duration-500">
+            <Image
+              src="/logo.png"
+              alt="KickSense Logo"
+              fill
+              className="object-contain"
+              priority
+            />
           </div>
-          <div>
-            <h2 className="text-xl font-black text-white tracking-tighter uppercase">KickSense</h2>
-            <p className="text-[10px] font-bold text-[#006747] tracking-[0.2em] uppercase">Intelligence</p>
-          </div>
-        </div>
+          <p className="text-xs font-bold text-[#14B871] tracking-[0.4em] uppercase opacity-70 group-hover:opacity-100 transition-opacity">
+            Intelligence
+          </p>
+        </button>
 
         {/* Nav Items */}
         <nav className="flex-1 px-3 py-4" aria-label="Dashboard navigation">
@@ -134,7 +143,7 @@ export function SidebarNav({
                   type="button"
                   onClick={() => onTabChange(item.id)}
                   className={cn(
-                    "animate-slide-in-left group flex w-full items-center gap-3 rounded-2xl px-5 py-4 text-sm font-bold uppercase tracking-wider transition-all duration-300",
+                    "animate-slide-in-left group flex w-full items-center gap-3 rounded-2xl px-5 py-4 text-base font-bold tracking-wider transition-all duration-300",
                     activeTab === item.id
                       ? "bg-[#006747] text-white shadow-[0_10px_20px_rgba(0,103,71,0.2)]"
                       : "text-white/60 hover:bg-white/5 hover:text-white"
@@ -159,8 +168,8 @@ export function SidebarNav({
         {/* Footer */}
         <div className="border-t border-[#14B871]/10 px-6 py-4">
           <div className="glass rounded-xl px-4 py-3">
-            <p className="text-xs font-medium text-[#14B871]">Pro Version</p>
-            <p className="mt-0.5 text-[10px] text-[#9cb8a9]">Unlock advanced AI features</p>
+            <p className="text-sm font-medium text-[#14B871]">Pro Version</p>
+            <p className="mt-0.5 text-xs text-[#9cb8a9]">Unlock advanced AI features</p>
           </div>
         </div>
       </aside>

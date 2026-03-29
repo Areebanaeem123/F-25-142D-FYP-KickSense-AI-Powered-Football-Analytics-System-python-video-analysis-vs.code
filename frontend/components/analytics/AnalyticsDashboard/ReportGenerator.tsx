@@ -387,7 +387,7 @@ export function ReportGenerator({ matchId = 1 }: ReportGeneratorProps) {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button size="lg" className="bg-[#14B871] hover:bg-[#14B871]/90 text-white font-black rounded-2xl flex items-center gap-3 shadow-[0_10px_30px_rgba(20,184,113,0.4)] border-none px-8 py-6 h-auto text-lg transition-all active:scale-95">
+                <Button size="lg" className="bg-[#14B871] hover:bg-[#14B871]/90 text-white font-black rounded-2xl flex items-center gap-3 shadow-[0_10px_30px_rgba(20,184,113,0.4)] border-none px-6 py-4 h-auto text-base transition-all active:scale-95">
                     {generating ? <Loader2 className="w-6 h-6 animate-spin" /> : <Download className="w-6 h-6" />}
                     EXPORT INTELLIGENCE REPORT
                 </Button>
@@ -401,8 +401,8 @@ export function ReportGenerator({ matchId = 1 }: ReportGeneratorProps) {
                         <FileIcon className="w-5 h-5 text-red-400" />
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-sm font-black">PDF REPORT</span>
-                        <span className="text-[10px] text-[#9cb8a9]">Full Visual & Textual Analysis</span>
+                        <span className="text-base font-black">PDF REPORT</span>
+                        <span className="text-xs text-[#9cb8a9]">Full Visual & Textual Analysis</span>
                     </div>
                 </DropdownMenuItem>
 
@@ -414,8 +414,8 @@ export function ReportGenerator({ matchId = 1 }: ReportGeneratorProps) {
                         <FileText className="w-5 h-5 text-blue-400" />
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-sm font-black">WORD DOC</span>
-                        <span className="text-[10px] text-[#9cb8a9]">Editable Coach's Script</span>
+                        <span className="text-base font-black">WORD DOC</span>
+                        <span className="text-xs text-[#9cb8a9]">Editable Coach's Script</span>
                     </div>
                 </DropdownMenuItem>
 
@@ -427,8 +427,8 @@ export function ReportGenerator({ matchId = 1 }: ReportGeneratorProps) {
                         <Monitor className="w-5 h-5 text-emerald-400" />
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-sm font-black">RAW DATA</span>
-                        <span className="text-[10px] text-[#9cb8a9]">Plain Text Logging</span>
+                        <span className="text-base font-black">RAW DATA</span>
+                        <span className="text-xs text-[#9cb8a9]">Plain Text Logging</span>
                     </div>
                 </DropdownMenuItem>
             </DropdownMenuContent>

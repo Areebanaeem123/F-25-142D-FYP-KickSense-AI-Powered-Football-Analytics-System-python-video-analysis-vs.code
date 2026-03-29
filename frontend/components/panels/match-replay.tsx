@@ -5,6 +5,7 @@ import { Play, Pause, RotateCcw, Download, Maximize, Volume2, Shield } from "luc
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 
 export function MatchReplay() {
+    console.log("Current Component: MatchReplay v3 (video.mp4)")
     const videoRef = useRef<HTMLVideoElement>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [progress, setProgress] = useState(0)
@@ -27,17 +28,19 @@ export function MatchReplay() {
         if (videoRef.current) {
             const current = videoRef.current.currentTime
             const duration = videoRef.current.duration
-            if (duration && !isNaN(duration) && duration > 0) {
+            if (typeof duration === 'number' && isFinite(duration) && duration > 0) {
                 setProgress((current / duration) * 100)
             }
         }
     }
 
     const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (videoRef.current) {
+        if (videoRef.current && typeof videoRef.current.duration === 'number' && isFinite(videoRef.current.duration)) {
             const newTime = (parseFloat(e.target.value) / 100) * videoRef.current.duration
-            videoRef.current.currentTime = newTime
-            setProgress(parseFloat(e.target.value))
+            if (isFinite(newTime)) {
+                videoRef.current.currentTime = newTime
+                setProgress(parseFloat(e.target.value))
+            }
         }
     }
 
@@ -53,14 +56,14 @@ export function MatchReplay() {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-4xl font-black text-white tracking-tighter uppercase">AI Tactical Replay</h1>
-                    <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Neural-Processed Match Discovery</p>
+                    <h1 className="text-5xl font-black text-white tracking-tighter">AI Tactical Replay</h1>
+                    <p className="text-white/40 text-base font-bold tracking-widest">Neural-Processed Match Discovery</p>
                 </div>
                 <button
                     onClick={() => window.open('/api/video', '_blank')}
-                    className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-xl border border-white/10 transition-all font-black uppercase text-[10px] tracking-widest"
+                    className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-xl border border-white/10 transition-all font-black text-sm tracking-widest"
                 >
-                    <Download className="w-3.5 h-3.5" /> Export Analysis
+                    <Download className="w-5 h-5" /> Export Analysis
                 </button>
             </div>
 
@@ -70,12 +73,19 @@ export function MatchReplay() {
                     <div className="relative aspect-video bg-black">
                         <video
                             ref={videoRef}
-                            src="/api/video"
+                            src="/video.mp4?v=3"
                             className="w-full h-full object-contain"
                             onTimeUpdate={handleTimeUpdate}
                             onClick={togglePlay}
+                            onLoadedData={() => console.log("Video loaded successfully")}
+                            onError={(e) => {
+                                const video = e.currentTarget;
+                                console.error("Video error code:", video.error?.code);
+                                console.error("Video error message:", video.error?.message);
+                            }}
                             playsInline
                             preload="auto"
+                            controls
                         />
 
                         {/* Custom Overlay Controls */}
@@ -116,7 +126,7 @@ export function MatchReplay() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4">
-                                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest tabular-nums">
+                                        <span className="text-xs font-black text-white/40 tracking-widest tabular-nums">
                                             HD Neural Stream
                                         </span>
                                         <button className="text-white hover:text-[#006747] transition-all">
@@ -133,14 +143,14 @@ export function MatchReplay() {
                 <div className="space-y-6">
                     <Card className="glass border-white/5 bg-black/40 h-full">
                         <CardHeader className="border-b border-white/5 pb-4">
-                            <CardTitle className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
-                                <Shield className="w-4 h-4 text-[#006747]" /> Tactical Analysis
+                            <CardTitle className="text-base font-black text-white tracking-widest flex items-center gap-2">
+                                <Shield className="w-5 h-5 text-[#006747]" /> Tactical Analysis
                             </CardTitle>
-                            <CardDescription className="text-[10px] font-bold text-white/30 uppercase tracking-tighter">AI-detected match context</CardDescription>
+                            <CardDescription className="text-sm font-bold text-white/30 tracking-tighter">AI-detected match context</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6 pt-6">
                             <div className="p-5 rounded-2xl bg-[#006747]/5 border border-[#006747]/20 shadow-2xl">
-                                <span className="text-[10px] font-black text-white uppercase tracking-widest block mb-2">Active Modalities</span>
+                                <span className="text-base font-black text-white block mb-2 tracking-widest">Active Modalities</span>
                                 <div className="space-y-3">
                                     {[
                                         { label: "Player Centric Tracking", status: "Active" },
@@ -149,8 +159,8 @@ export function MatchReplay() {
                                         { label: "Event Detection (Beta)", status: "Active" }
                                     ].map((mod) => (
                                         <div key={mod.label} className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-white/5">
-                                            <span className="text-[9px] font-bold text-white/60 uppercase">{mod.label}</span>
-                                            <span className={`text-[8px] font-black uppercase tracking-widest ${mod.status === 'Active' ? 'text-[#006747]' : 'text-yellow-500'}`}>
+                                            <span className="text-sm font-bold text-white/60">{mod.label}</span>
+                                            <span className={`text-xs font-black tracking-widest ${mod.status === 'Active' ? 'text-[#006747]' : 'text-yellow-500'}`}>
                                                 {mod.status}
                                             </span>
                                         </div>
@@ -159,18 +169,17 @@ export function MatchReplay() {
                             </div>
 
                             <div className="space-y-4">
-                                <h4 className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Neural Summary</h4>
-                                <p className="text-[11px] text-white/50 leading-relaxed font-medium">
+                                <h4 className="text-sm font-black text-white/30 tracking-[0.2em]">Neural Summary</h4>
+                                <p className="text-base text-white/50 leading-relaxed font-medium">
                                     This recording contains the complete spatiotemporal analysis of the match. Neural networks have been applied to detect player identities, velocity vectors, and high-impact event zones.
                                 </p>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                                        <span className="text-[8px] font-black text-white/20 uppercase block tracking-widest">Resolution</span>
-                                        <span className="text-[11px] font-black text-white uppercase tracking-tighter">1080P AI-UP</span>
+                                        <span className="text-xs font-black text-white/20 block tracking-widest">Resolution</span>
                                     </div>
                                     <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                                        <span className="text-[8px] font-black text-white/20 uppercase block tracking-widest">Model</span>
-                                        <span className="text-[11px] font-black text-white uppercase tracking-tighter">KICKSENSE-V2</span>
+                                        <span className="text-[10px] font-black text-white/20 block tracking-widest">Model</span>
+                                        <span className="text-sm font-black text-white tracking-tighter">KICKSENSE-V2</span>
                                     </div>
                                 </div>
                             </div>

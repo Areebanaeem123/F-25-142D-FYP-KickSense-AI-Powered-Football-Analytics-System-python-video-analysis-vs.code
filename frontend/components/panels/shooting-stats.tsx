@@ -90,46 +90,46 @@ export function ShootingStats() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card className="glass border-white/5 bg-black/40">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest flex items-center gap-2">
-                            <Activity className="w-3 h-3 text-[#006747]" /> Total Shots
+                        <CardTitle className="text-sm font-black text-white/30 tracking-widest flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-[#006747]" /> Total Shots
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black text-white tabular-nums">{totalShots}</div>
+                        <div className="text-4xl font-black text-white tabular-nums">{totalShots}</div>
                     </CardContent>
                 </Card>
 
                 <Card className="glass border-white/5 bg-black/40">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest flex items-center gap-2">
-                            <Target className="w-3 h-3 text-[#006747]" /> Accuracy
+                        <CardTitle className="text-sm font-black text-white/30 tracking-widest flex items-center gap-2">
+                            <Target className="w-4 h-4 text-[#006747]" /> Accuracy
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black text-white tabular-nums">{accuracy.toFixed(1)}%</div>
-                        <p className="text-[10px] text-white/20 font-bold mt-1 uppercase tracking-tighter">{onTarget} on target</p>
+                        <div className="text-4xl font-black text-white tabular-nums">{accuracy.toFixed(1)}%</div>
+                        <p className="text-sm text-white/20 font-bold mt-1 tracking-tighter">{onTarget} on target</p>
                     </CardContent>
                 </Card>
 
                 <Card className="glass border-white/5 bg-black/40">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest flex items-center gap-2">
-                            <Zap className="w-3 h-3 text-[#006747]" /> Avg Power
+                        <CardTitle className="text-sm font-black text-white/30 tracking-widest flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-[#006747]" /> Avg Power
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black text-white tabular-nums">{avgPower.toFixed(1)} <span className="text-sm font-bold text-white/20">m/s</span></div>
+                        <div className="text-4xl font-black text-white tabular-nums">{avgPower.toFixed(1)} <span className="text-base font-bold text-white/20">m/s</span></div>
                     </CardContent>
                 </Card>
 
                 <Card className="glass border-white/5 bg-black/40">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-[10px] font-black text-white/30 uppercase tracking-widest flex items-center gap-2">
-                            <span className="text-[#006747]">⚽</span> Goals
+                        <CardTitle className="text-sm font-black text-white/30 tracking-widest flex items-center gap-2">
+                            <span className="text-base text-[#006747]">⚽</span> Goals
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black text-white tabular-nums">{goals}</div>
+                        <div className="text-4xl font-black text-white tabular-nums">{goals}</div>
                     </CardContent>
                 </Card>
             </div>
@@ -138,15 +138,15 @@ export function ShootingStats() {
                 {/* Power Distribution */}
                 <Card className="glass border-white/5">
                     <CardHeader className="border-b border-white/5 py-4">
-                        <CardTitle className="text-xs font-black text-white uppercase tracking-widest">Shot Power Distribution</CardTitle>
+                        <CardTitle className="text-base font-black text-white tracking-widest">Shot Power Distribution</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
                         <div className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={powerBuckets}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="white" vertical={false} opacity={0.05} />
-                                    <XAxis dataKey="range" stroke="white" fontSize={10} opacity={0.4} axisLine={false} tickLine={false} />
-                                    <YAxis stroke="white" fontSize={10} opacity={0.4} axisLine={false} tickLine={false} />
+                                    <XAxis dataKey="range" stroke="white" fontSize={12} opacity={0.4} axisLine={false} tickLine={false} />
+                                    <YAxis stroke="white" fontSize={12} opacity={0.4} axisLine={false} tickLine={false} />
                                     <Tooltip
                                         contentStyle={{ backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
                                         itemStyle={{ color: "#006747" }}
@@ -161,7 +161,7 @@ export function ShootingStats() {
                 {/* Shot Locations (Scatter Plot) */}
                 <Card className="glass border-white/5">
                     <CardHeader className="border-b border-white/5 py-4">
-                        <CardTitle className="text-xs font-black text-white uppercase tracking-widest">Shot Origins Map</CardTitle>
+                        <CardTitle className="text-base font-black text-white tracking-widest">Shot Origins Map</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="h-[300px] relative">
@@ -181,10 +181,10 @@ export function ShootingStats() {
                                                 const data = payload[0].payload as ShotEvent
                                                 return (
                                                     <div className="glass p-3 border border-[#14B87140] rounded-lg">
-                                                        <p className="text-xs font-bold text-[#e8f5ee]">Player {data.track_id}</p>
-                                                        <p className="text-[10px] text-[#9cb8a9]">Power: {data.power_ms.toFixed(1)} m/s</p>
-                                                        <p className="text-[10px] text-[#9cb8a9]">Dist: {data.distance_m.toFixed(1)} m</p>
-                                                        <p className={`text-[10px] font-bold mt-1 ${data.is_goal ? 'text-[#14B871]' : data.is_on_target ? 'text-blue-400' : 'text-red-400'}`}>
+                                                        <p className="text-base font-bold text-[#e8f5ee]">Player {data.track_id}</p>
+                                                        <p className="text-sm text-[#9cb8a9]">Power: {data.power_ms.toFixed(1)} m/s</p>
+                                                        <p className="text-sm text-[#9cb8a9]">Dist: {data.distance_m.toFixed(1)} m</p>
+                                                        <p className={`text-xs font-bold mt-1 ${data.is_goal ? 'text-[#14B871]' : data.is_on_target ? 'text-blue-400' : 'text-red-400'}`}>
                                                             {data.is_goal ? 'GOAL!' : data.is_on_target ? 'On Target' : 'Off Target'}
                                                         </p>
                                                     </div>
@@ -208,15 +208,15 @@ export function ShootingStats() {
                         <div className="flex justify-center gap-6 mt-4 pb-2">
                             <div className="flex items-center gap-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-[#006747] shadow-[0_0_10px_#006747]" />
-                                <span className="text-[10px] font-black text-white uppercase tracking-tighter">Goal</span>
+                                <span className="text-sm font-black text-white tracking-tighter">Goal</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]" />
-                                <span className="text-[10px] font-black text-white/50 uppercase tracking-tighter">On Target</span>
+                                <span className="text-sm font-black text-white/50 tracking-tighter">On Target</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
-                                <span className="text-[10px] font-black text-white/50 uppercase tracking-tighter">Off Target</span>
+                                <span className="text-sm font-black text-white/50 tracking-tighter">Off Target</span>
                             </div>
                         </div>
                     </CardContent>

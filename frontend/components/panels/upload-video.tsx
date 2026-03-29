@@ -43,8 +43,8 @@ export function UploadVideoPanel() {
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       <div>
-        <h1 className="text-4xl font-black text-white tracking-tighter uppercase">Direct Upload</h1>
-        <p className="mt-2 text-sm text-white/40 font-bold uppercase tracking-widest leading-none">Ingest match footage for AI-powered intelligence</p>
+        <h1 className="text-4xl font-black text-white tracking-tighter">Direct Upload</h1>
+        <p className="mt-2 text-sm text-white/40 font-bold tracking-widest leading-none">Ingest match footage for AI-powered intelligence</p>
       </div>
 
       {/* Drop zone */}
@@ -113,7 +113,7 @@ export function UploadVideoPanel() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
                   <div className="h-6 w-6 border-[3px] border-[#006747] border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm font-black text-white uppercase tracking-widest">
+                  <span className="text-sm font-black text-white tracking-widest">
                     {progress < 100 ? "Syncing Logic..." : "Data Normalized"}
                   </span>
                 </div>
@@ -138,8 +138,8 @@ export function UploadVideoPanel() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-base font-black text-white uppercase tracking-widest leading-none">Intelligence Locked</p>
-                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Ready for spatiotemporal analysis</p>
+                  <p className="text-base font-black text-white tracking-widest leading-none">Intelligence Locked</p>
+                  <p className="text-[10px] text-white/40 font-bold tracking-widest mt-1">Ready for spatiotemporal analysis</p>
                 </div>
               </div>
             </div>
@@ -147,7 +147,7 @@ export function UploadVideoPanel() {
             <button
               type="button"
               onClick={simulateUpload}
-              className="inline-flex items-center justify-center gap-3 rounded-2xl px-8 py-5 text-sm font-black text-white transition-all duration-500 hover:scale-[1.02] bg-[#006747] shadow-[0_0_30px_rgba(0,103,71,0.3)] hover:shadow-[0_0_40px_rgba(0,103,71,0.5)] active:scale-[0.98] uppercase tracking-[0.2em]"
+              className="inline-flex items-center justify-center gap-3 rounded-2xl px-8 py-5 text-sm font-black text-white transition-all duration-500 hover:scale-[1.02] bg-[#006747] shadow-[0_0_30px_rgba(0,103,71,0.3)] hover:shadow-[0_0_40px_rgba(0,103,71,0.5)] active:scale-[0.98] tracking-[0.2em]"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -176,7 +176,7 @@ export function UploadVideoPanel() {
               </div>
               <div>
                 <p className="text-2xl font-black text-white tabular-nums tracking-tighter">{stat.value}</p>
-                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">{stat.label}</p>
+                <p className="text-[10px] font-black text-white/30 tracking-widest">{stat.label}</p>
               </div>
             </div>
           </div>

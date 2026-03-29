@@ -9,9 +9,8 @@ export const maxDuration = 60;
 
 const VIDEO_PATH = path.join(
     process.cwd(),
-    "..",
-    "video_results",
-    "advanced_player_tracking_output.mp4"
+    "public",
+    "match-video.mp4"
 );
 
 export async function GET(request: NextRequest) {

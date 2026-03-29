@@ -163,7 +163,7 @@ export function PlayerShotChart({ playerId, matchId = 1 }: PlayerShotChartProps)
 
             <div className="glass rounded-lg border border-[#14B871]/10 overflow-hidden">
                 <table className="w-full text-left text-[10px]">
-                    <thead className="bg-[#14B8710a] text-[#9cb8a9] uppercase tracking-wider">
+                    <thead className="bg-[#14B8710a] text-[#9cb8a9] tracking-wider">
                         <tr>
                             <th className="px-4 py-2 font-semibold">Frame</th>
                             <th className="px-4 py-2 font-semibold">Dist (m)</th>
