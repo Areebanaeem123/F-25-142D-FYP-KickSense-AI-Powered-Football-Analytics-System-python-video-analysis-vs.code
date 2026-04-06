@@ -128,20 +128,29 @@ class VideoRenderer:
                         cls = track_class_map.get(track_id, 2)
                         color = CLASS_COLORS.get(cls, (255, 180, 120))
                         
-                        # Draw ellipse
-                        draw_ellipse(frame, (x1, y1, x2, y2), color, track_id)
+                        # Determine display label: jersey number > track_id
+                        jersey_num = track_info.get('jersey_number')
+                        display_id = f"#{jersey_num}" if jersey_num else str(track_id)
                         
-                        # Team label
+                        # Draw ellipse with jersey number or track ID
+                        draw_ellipse(frame, (x1, y1, x2, y2), color, display_id)
+                        
+                        # Team + jersey label
                         team_id = track_info.get('team_id')
                         if team_id is not None:
                             team_color = self.team_colors[team_id % len(self.team_colors)]
-                            label = f"T{team_id + 1}"
+                            if jersey_num:
+                                label = f"T{team_id + 1} #{jersey_num}"
+                                label_w = 70
+                            else:
+                                label = f"T{team_id + 1}"
+                                label_w = 30
                             label_bg = (x1, max(0, y1 - 18))
                             cv2.rectangle(frame, label_bg, 
-                                        (label_bg[0] + 30, label_bg[1] + 18), 
+                                        (label_bg[0] + label_w, label_bg[1] + 18), 
                                         team_color, -1)
                             cv2.putText(frame, label, (label_bg[0] + 4, label_bg[1] + 13),
-                                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 2)
                         
                         # Ball possession indicator
                         if track_info.get('has_ball'):

@@ -137,6 +137,10 @@ class KicksenseDB:
                 updated_at TIMESTAMPTZ DEFAULT NOW(),
                 PRIMARY KEY (match_id, team_id)
             );
+
+            -- Jersey number recognition columns
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS jersey_number INT;
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS player_name VARCHAR(100);
         """
         try:
             self.cursor.execute(query)
@@ -424,6 +428,37 @@ class KicksenseDB:
                 print(f"❌ Failed to update player shooting stats: {e}")
                 self.conn.rollback()
 
+
+    def upsert_jersey_numbers(self, assignments: Dict, player_names: Dict = None,
+                              match_id: int = 1):
+        """
+        Update jersey_number and player_name for assigned tracks.
+
+        Args:
+            assignments: {stable_id: jersey_number}
+            player_names: {stable_id: player_name}
+            match_id: Match ID
+        """
+        if not self.conn or not assignments:
+            return
+
+        player_names = player_names or {}
+        query = """
+            UPDATE player_match_stats
+            SET jersey_number = %s,
+                player_name = %s,
+                updated_at = NOW()
+            WHERE match_id = %s AND track_id = %s
+        """
+        try:
+            for sid, jnum in assignments.items():
+                name = player_names.get(sid, "")
+                self.cursor.execute(query, (jnum, name, match_id, sid))
+            self.conn.commit()
+            print(f"✅ Jersey numbers persisted ({len(assignments)} players)")
+        except Exception as e:
+            print(f"❌ Failed to upsert jersey numbers: {e}")
+            self.conn.rollback()
 
     def close(self):
         self.flush() # Save whatever is left

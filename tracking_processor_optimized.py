@@ -9,6 +9,7 @@ from speed_and_distance_estimator import SpeedAndDistance_Estimator
 from player_ball_assigner import assign_ball_to_players
 from team_classifier import SiglipTeamClassifier
 from view_transformer import ViewTransformer
+from jersey_number_recognizer import JerseyNumberRecognizer
 
 
 class StableIDManager:
@@ -145,6 +146,7 @@ class OptimizedTrackingProcessor:
         # OPTIMIZATION: Add performance flags
         self.detection_interval = 2  # Run detection every N frames
         self.team_classification_interval = 30  # Classify teams every N frames
+        self.jersey_recognition_interval = 5  # OCR every N frames
         self.camera_estimation_interval = 1  # Camera movement every N frames
         self.profile_performance = True  # Enable profiling
         
@@ -183,6 +185,15 @@ class OptimizedTrackingProcessor:
             min_samples=24,
             pca_components=64,
         )
+        self.jersey_recognizer = JerseyNumberRecognizer(
+            recognition_interval=self.jersey_recognition_interval,
+            min_crop_height=40,
+            min_crop_width=20,
+            ocr_confidence_threshold=0.35,
+            voting_min_agreement=0.35,
+            voting_min_votes=3,
+            use_gpu=True,
+        )
         self.id_manager = StableIDManager(fps=self.fps)
         
         # Data storage
@@ -214,6 +225,7 @@ class OptimizedTrackingProcessor:
         print(f"⚡ Performance Optimizations:")
         print(f"   - Detection interval: {self.detection_interval} frames")
         print(f"   - Team classification interval: {self.team_classification_interval} frames")
+        print(f"   - Jersey recognition interval: {self.jersey_recognition_interval} frames")
         print(f"   - Camera estimation interval: {self.camera_estimation_interval} frames")
     
     def _init_optical_flow(self, first_frame):
@@ -464,6 +476,13 @@ class OptimizedTrackingProcessor:
                     if team_id is not None:
                         self.tracks[object_name][frame_idx][stable_id]['team_id'] = team_id
                     self.timers['team_class'] += time.time() - t_team
+
+                    # --- Jersey Number Recognition ---
+                    jersey_num = self.jersey_recognizer.process_crop(
+                        frame, bbox, stable_id, frame_idx
+                    )
+                    if jersey_num is not None:
+                        self.tracks[object_name][frame_idx][stable_id]['jersey_number'] = jersey_num
             
             self.timers['data_prep'] += time.time() - t1
             self.id_manager.cleanup(seen_track_ids, frame_idx)
@@ -513,11 +532,15 @@ class OptimizedTrackingProcessor:
     
     def get_results(self):
         """Return processed data"""
+        # Finalize jersey number voting after all frames are processed
+        self.jersey_recognizer.finalize()
+
         return {
             'tracks': self.tracks,
             'track_class_map': self.track_class_map,
             'stable_class_map': self.stable_class_map,
             'camera_movement': self.camera_movement_per_frame,
+            'jersey_recognizer': self.jersey_recognizer,
             'fps': self.fps,
             'width': self.width,
             'height': self.height,
