@@ -1,14 +1,16 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { Play, Pause, RotateCcw, Download, Maximize, Volume2, Shield } from "lucide-react"
+import { Play, Pause, RotateCcw, Download, Maximize, Volume2, Shield, Upload } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 
 export function MatchReplay() {
     console.log("Current Component: MatchReplay v3 (video.mp4)")
     const videoRef = useRef<HTMLVideoElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [progress, setProgress] = useState(0)
+    const [videoSrc, setVideoSrc] = useState("/video.mp4?v=3")
 
     const togglePlay = () => {
         if (videoRef.current) {
@@ -52,6 +54,21 @@ export function MatchReplay() {
         }
     }
 
+    const handleUploadClick = () => {
+        fileInputRef.current?.click()
+    }
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            const url = URL.createObjectURL(file)
+            setVideoSrc(url)
+            setIsPlaying(false)
+            setProgress(0)
+            console.log("Uploaded local video:", file.name)
+        }
+    }
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -59,12 +76,27 @@ export function MatchReplay() {
                     <h1 className="text-5xl font-black text-white tracking-tighter">AI Tactical Replay</h1>
                     <p className="text-white/40 text-base font-bold tracking-widest">Neural-Processed Match Discovery</p>
                 </div>
-                <button
-                    onClick={() => window.open('/api/video', '_blank')}
-                    className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-xl border border-white/10 transition-all font-black text-sm tracking-widest"
-                >
-                    <Download className="w-5 h-5" /> Export Analysis
-                </button>
+                <div className="flex items-center gap-3">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept="video/*"
+                        className="hidden"
+                    />
+                    <button
+                        onClick={handleUploadClick}
+                        className="flex items-center gap-2 bg-[#006747]/20 hover:bg-[#006747]/40 text-[#006747] px-5 py-2.5 rounded-xl border border-[#006747]/30 transition-all font-black text-sm tracking-widest"
+                    >
+                        <Upload className="w-5 h-5" /> Upload Video
+                    </button>
+                    <button
+                        onClick={() => window.open('/api/video', '_blank')}
+                        className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-xl border border-white/10 transition-all font-black text-sm tracking-widest"
+                    >
+                        <Download className="w-5 h-5" /> Export Analysis
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -73,7 +105,7 @@ export function MatchReplay() {
                     <div className="relative aspect-video bg-black">
                         <video
                             ref={videoRef}
-                            src="/video.mp4?v=3"
+                            src={videoSrc}
                             className="w-full h-full object-contain"
                             onTimeUpdate={handleTimeUpdate}
                             onClick={togglePlay}

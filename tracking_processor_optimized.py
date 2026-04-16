@@ -152,10 +152,15 @@ class OptimizedTrackingProcessor:
         self.model = load_model(model_path)
         self.tracker = create_tracker()
         
-        # Require CUDA
-        if not torch.cuda.is_available():
-            raise RuntimeError("CUDA is required but not available.")
-        self.device = "cuda"
+        # Device selection (CPU fallback)
+        if torch.cuda.is_available():
+            self.device = "cuda"
+            self.half = True
+            print("🚀 Using CUDA for tracking")
+        else:
+            self.device = "cpu"
+            self.half = False
+            print("⚠️ CUDA not available, falling back to CPU")
         
         # Video properties
         self.cap = cv2.VideoCapture(video_path)
@@ -339,7 +344,7 @@ class OptimizedTrackingProcessor:
                 with torch.no_grad():
                     results = self.model.predict(
                         frame_small, conf=0.4, iou=0.5,
-                        device=self.device, half=True, verbose=False
+                        device=self.device, half=self.half, verbose=False
                     )[0]
                 
                 detections = []

@@ -9,6 +9,7 @@ Uses MANUAL keyframe homography for real-world speed & distance estimation
 import cv2
 import numpy as np
 import os
+import shutil
 from datetime import datetime, timedelta, timezone
 
 from tracking_processor_optimized import OptimizedTrackingProcessor
@@ -347,6 +348,21 @@ def main():
         height=height,
         total_frames=total_frames
     )
+    
+    # --------------------------------------------------------
+    # STEP 7: EXPORT TO FRONTEND
+    # --------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("STEP 7: Exporting to Frontend")
+    print("-" * 70)
+    
+    frontend_public_video = "frontend/public/video.mp4"
+    try:
+        os.makedirs(os.path.dirname(frontend_public_video), exist_ok=True)
+        shutil.copy2(OUTPUT_VIDEO_PATH, frontend_public_video)
+        print(f"✅ Video exported to frontend: {frontend_public_video}")
+    except Exception as e:
+        print(f"⚠️ Failed to export video to frontend: {e}")
 
     # --------------------------------------------------------
     # FINAL SUMMARY
