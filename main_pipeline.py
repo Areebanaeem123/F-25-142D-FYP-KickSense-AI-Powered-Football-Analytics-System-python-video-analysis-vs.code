@@ -23,7 +23,9 @@ from speed_and_distance_estimator import (
 from foul_risk_estimator import FoulRiskEstimator
 from dribbling_analyzer import DribblingAnalyzer
 from shooting_analyzer import ShootingAnalyzer
+from passing_analyzer import PassingAnalyzer
 from substitution_recommender import SubstitutionRecommender
+from formation_analyzer import FormationAnalyzer
 from db_connect import KicksenseDB
 
 
@@ -31,8 +33,8 @@ from db_connect import KicksenseDB
 # CONFIGURATION
 # ============================================================
 
-VIDEO_PATH = "/home/areeba/Desktop/real.mp4"
-MODEL_PATH = "/home/areeba/Downloads/weights/best.pt"
+VIDEO_PATH = "test-4.mp4"
+MODEL_PATH = "models/soccer_detector_1280_rtx40603/weights/best.pt"
 
 OUTPUT_VIDEO_PATH = "video_results/advanced_player_tracking_output.mp4"
 STATS_CSV_PATH = "video_results/player_stats_advanced.csv"
@@ -52,7 +54,7 @@ def load_db_config():
     }
 
 
-def persist_results_to_db(tracks, player_stats, foul_risk_map, dribbling_data, shooting_data, fps, total_frames, match_id=1):
+def persist_results_to_db(tracks, player_stats, foul_risk_map, dribbling_data, shooting_data, passing_data, fps, total_frames, match_id=1):
 
     """
     Persist frame-level tracking rows + aggregated player stats + dribbling stats to TimescaleDB.
@@ -105,7 +107,8 @@ def persist_results_to_db(tracks, player_stats, foul_risk_map, dribbling_data, s
         db.upsert_player_stats(player_stats, foul_risk_map=foul_risk_map, match_id=match_id)
         db.upsert_dribbling_stats(dribbling_data, match_id=match_id)
         db.upsert_shooting_stats(shooting_data, fps=safe_fps, match_id=match_id)
-        print("✅ TimescaleDB updated with tracking_data, player_match_stats, dribbling, and shooting stats")
+        db.upsert_passing_stats(passing_data, fps=safe_fps, match_id=match_id)
+        print("✅ TimescaleDB updated with tracking_data, player_match_stats, dribbling, shooting, and passing stats")
 
     finally:
         db.close()
@@ -294,6 +297,24 @@ def main():
     shooting_data = shooting_analyzer.analyze_tracks(tracks)
     print(f"📊 Shots detected: {len(shooting_data['shot_events'])}")
 
+    print("🎯 Analyzing passing accuracy...")
+    passing_analyzer = PassingAnalyzer(fps=fps, class_map=stable_class_map)
+    passing_data = passing_analyzer.analyze_tracks(tracks)
+    print(f"📊 Passes detected: {len(passing_data['pass_events'])}")
+    for team_id, ts in passing_data.get("team_passing_stats", {}).items():
+        print(f"   Team {team_id}: {ts['total_passes']} attempts, "
+              f"{ts['pass_accuracy']:.1f}% accuracy, {ts.get('interceptions', 0)} interceptions")
+    
+    print("Analyzing team formations...")
+    formation_analyzer = FormationAnalyzer()
+    formation_summary = formation_analyzer.analyze_tracks(tracks)
+    formation_analyzer.print_analysis(formation_summary)
+
+    print("\n⏱️ Ball Possession:")
+    for team_id, ps in passing_data.get("possession_stats", {}).items():
+        print(f"   Team {team_id}: {ps['percentage']:.1f}% ({ps['frames']} frames)")
+
+
 
     player_stats = speed_estimator.export_stats_to_csv(
         tracks,
@@ -319,6 +340,7 @@ def main():
         foul_risk_map=foul_risk_map,
         dribbling_data=dribbling_data,
         shooting_data=shooting_data,
+        passing_data=passing_data,
         fps=fps,
         total_frames=total_frames,
         match_id=1,

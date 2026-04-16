@@ -125,6 +125,45 @@ class KicksenseDB:
             ALTER TABLE shot_events ADD COLUMN IF NOT EXISTS trajectory JSONB;
 
 
+            -- Passing Stats columns (schema evolution for existing volumes)
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS passes_attempted INT DEFAULT 0;
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS passes_completed INT DEFAULT 0;
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS pass_accuracy DOUBLE PRECISION DEFAULT 0.0;
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS avg_pass_distance_m DOUBLE PRECISION DEFAULT 0.0;
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS progressive_passes INT DEFAULT 0;
+
+            CREATE TABLE IF NOT EXISTS pass_events (
+                pass_id SERIAL PRIMARY KEY,
+                match_id INT REFERENCES matches(match_id),
+                passer_id INT,
+                receiver_id INT,
+                passer_team INT REFERENCES teams(team_id),
+                receiver_team INT,
+                frame_idx INT,
+                time TIMESTAMPTZ,
+                distance_m DOUBLE PRECISION,
+                is_completed BOOLEAN,
+                is_progressive BOOLEAN,
+                x_origin DOUBLE PRECISION,
+                y_origin DOUBLE PRECISION,
+                x_target DOUBLE PRECISION,
+                y_target DOUBLE PRECISION,
+                trajectory JSONB
+            );
+
+            CREATE TABLE IF NOT EXISTS team_passing_stats (
+                match_id INT REFERENCES matches(match_id),
+                team_id INT REFERENCES teams(team_id),
+                total_passes INT DEFAULT 0,
+                completed_passes INT DEFAULT 0,
+                pass_accuracy DOUBLE PRECISION DEFAULT 0.0,
+                total_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
+                progressive_passes INT DEFAULT 0,
+                avg_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                PRIMARY KEY (match_id, team_id)
+            );
+
             CREATE TABLE IF NOT EXISTS team_dribbling_stats (
                 match_id INT REFERENCES matches(match_id),
                 team_id INT REFERENCES teams(team_id),
@@ -151,6 +190,8 @@ class KicksenseDB:
             return
         try:
             self.cursor.execute("DELETE FROM tracking_data WHERE match_id = %s", (match_id,))
+            self.cursor.execute("DELETE FROM pass_events WHERE match_id = %s", (match_id,))
+            self.cursor.execute("DELETE FROM team_passing_stats WHERE match_id = %s", (match_id,))
             self.cursor.execute("DELETE FROM team_dribbling_stats WHERE match_id = %s", (match_id,))
             self.cursor.execute("DELETE FROM shot_events WHERE match_id = %s", (match_id,))
             self.cursor.execute("DELETE FROM player_match_stats WHERE match_id = %s", (match_id,))
@@ -424,6 +465,126 @@ class KicksenseDB:
                 print(f"❌ Failed to update player shooting stats: {e}")
                 self.conn.rollback()
 
+
+    def upsert_passing_stats(self, passing_data: Dict, fps: int, match_id=1):
+        """
+        Persist pass events and update per-player / per-team passing aggregates.
+
+        Args:
+            passing_data: Output from PassingAnalyzer.analyze_tracks()
+            fps:          Frames per second (used to compute event timestamps)
+            match_id:     Match ID
+        """
+        if not self.conn or not passing_data:
+            return
+
+        from datetime import datetime, timedelta, timezone
+        start_ts = datetime.now(timezone.utc)
+
+        # 1. Insert individual pass events
+        pass_events = passing_data.get("pass_events", [])
+        if pass_events:
+            event_query = """
+                INSERT INTO pass_events
+                (match_id, passer_id, receiver_id, passer_team, receiver_team,
+                 frame_idx, time, distance_m, is_completed, is_progressive,
+                 x_origin, y_origin, x_target, y_target, trajectory)
+                VALUES %s
+            """
+            rows = []
+            for ev in pass_events:
+                timestamp = start_ts + timedelta(seconds=ev.frame_idx / max(1, fps))
+                rows.append((
+                    match_id,
+                    ev.passer_id,
+                    ev.receiver_id,
+                    ev.passer_team,
+                    ev.receiver_team,
+                    ev.frame_idx,
+                    timestamp,
+                    ev.distance_m,
+                    ev.is_completed,
+                    ev.is_progressive,
+                    ev.origin_pos[0] if ev.origin_pos else None,
+                    ev.origin_pos[1] if ev.origin_pos else None,
+                    ev.x_target if ev.is_completed else None,
+                    ev.y_target if ev.is_completed else None,
+                    json.dumps(ev.trajectory),
+                ))
+            try:
+                execute_values(self.cursor, event_query, rows)
+                self.conn.commit()
+                print(f"✅ Pass events inserted ({len(pass_events)} events)")
+            except Exception as e:
+                print(f"❌ Failed to insert pass events: {e}")
+                self.conn.rollback()
+
+        # 2. Update per-player passing columns in player_match_stats
+        player_stats = passing_data.get("player_passing_stats", {})
+        if player_stats:
+            player_query = """
+                UPDATE player_match_stats
+                SET
+                    passes_attempted    = %s,
+                    passes_completed    = %s,
+                    pass_accuracy       = %s,
+                    avg_pass_distance_m = %s,
+                    progressive_passes  = %s,
+                    updated_at          = NOW()
+                WHERE match_id = %s AND track_id = %s
+            """
+            try:
+                for pid, s in player_stats.items():
+                    self.cursor.execute(player_query, (
+                        s.get("passes_attempted", 0),
+                        s.get("passes_completed", 0),
+                        s.get("pass_accuracy", 0.0),
+                        s.get("avg_pass_distance_m", 0.0),
+                        s.get("progressive_passes", 0),
+                        match_id,
+                        pid,
+                    ))
+                self.conn.commit()
+                print(f"✅ Player passing stats updated ({len(player_stats)} players)")
+            except Exception as e:
+                print(f"❌ Failed to update player passing stats: {e}")
+                self.conn.rollback()
+
+        # 3. Upsert team_passing_stats
+        team_stats = passing_data.get("team_passing_stats", {})
+        if team_stats:
+            team_query = """
+                INSERT INTO team_passing_stats
+                (match_id, team_id, total_passes, completed_passes, pass_accuracy,
+                 total_pass_distance_m, progressive_passes, avg_pass_distance_m)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (match_id, team_id)
+                DO UPDATE SET
+                    total_passes          = EXCLUDED.total_passes,
+                    completed_passes      = EXCLUDED.completed_passes,
+                    pass_accuracy         = EXCLUDED.pass_accuracy,
+                    total_pass_distance_m = EXCLUDED.total_pass_distance_m,
+                    progressive_passes    = EXCLUDED.progressive_passes,
+                    avg_pass_distance_m   = EXCLUDED.avg_pass_distance_m,
+                    updated_at            = NOW()
+            """
+            try:
+                for tid, ts in team_stats.items():
+                    self.cursor.execute(team_query, (
+                        match_id,
+                        tid,
+                        ts.get("total_passes", 0),
+                        ts.get("completed_passes", 0),
+                        ts.get("pass_accuracy", 0.0),
+                        ts.get("total_pass_distance_m", 0.0),
+                        ts.get("progressive_passes", 0),
+                        ts.get("avg_pass_distance_m", 0.0),
+                    ))
+                self.conn.commit()
+                print("✅ Team passing stats upserted successfully")
+            except Exception as e:
+                print(f"❌ Failed to upsert team passing stats: {e}")
+                self.conn.rollback()
 
     def close(self):
         self.flush() # Save whatever is left

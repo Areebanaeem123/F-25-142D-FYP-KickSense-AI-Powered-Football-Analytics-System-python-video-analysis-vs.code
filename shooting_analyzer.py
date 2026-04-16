@@ -47,7 +47,7 @@ class ShootingAnalyzer:
         self.goal_width = 7.32
         
         # Thresholds
-        self.shot_velocity_threshold = 6.0 # m/s (approx 21.6 km/h)
+        self.shot_velocity_threshold = 12.0 # m/s (approx 43.2 km/h)
         self.possession_buffer = 5 # frames to look back for last holder
         
         self.shot_events: List[ShotEvent] = []

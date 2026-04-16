@@ -52,3 +52,10 @@ node_modules/
 .venv/
 __pycache__/
 video_results/
+
+.claude/
+CLAUDE.md
+models/
+sessions/
+test-4.mp4
+test_passing.py

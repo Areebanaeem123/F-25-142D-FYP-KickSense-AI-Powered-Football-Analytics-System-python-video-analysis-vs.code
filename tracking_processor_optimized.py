@@ -196,9 +196,9 @@ class OptimizedTrackingProcessor:
         self.stable_class_map = {}
         self.camera_movement_per_frame = []
         
-        # OPTIMIZATION: Cache for detections and classifications
         self.last_detections = []
         self.last_detection_data = []
+        self.last_ball_detections = []
         self.classified_tracks = set()
         
         # Performance tracking
@@ -370,10 +370,12 @@ class OptimizedTrackingProcessor:
                 # Cache detections
                 self.last_detections = detections
                 self.last_detection_data = detection_data
+                self.last_ball_detections = ball_detections
             else:
                 # Reuse cached detections
                 detections = self.last_detections
                 detection_data = self.last_detection_data
+                ball_detections = self.last_ball_detections
             
             self.timers['detection'] += time.time() - t1
             

@@ -62,6 +62,13 @@ CREATE TABLE IF NOT EXISTS player_match_stats (
     shot_accuracy DOUBLE PRECISION DEFAULT 0.0,
     avg_shot_distance_m DOUBLE PRECISION DEFAULT 0.0,
     max_shot_power_ms DOUBLE PRECISION DEFAULT 0.0,
+    -- Passing Stats
+    passes_attempted INT DEFAULT 0,
+    passes_completed INT DEFAULT 0,
+    pass_accuracy DOUBLE PRECISION DEFAULT 0.0,
+    avg_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
+    progressive_passes INT DEFAULT 0,
+    sub_priority DOUBLE PRECISION DEFAULT 0.0,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (match_id, track_id)
 );
@@ -84,7 +91,41 @@ CREATE TABLE IF NOT EXISTS shot_events (
 );
 
 
--- 5. Team Dribbling Stats (one row per team per match)
+-- 6. Individual Pass Events
+CREATE TABLE IF NOT EXISTS pass_events (
+    pass_id SERIAL PRIMARY KEY,
+    match_id INT REFERENCES matches(match_id),
+    passer_id INT,
+    receiver_id INT,
+    passer_team INT REFERENCES teams(team_id),
+    receiver_team INT,
+    frame_idx INT,
+    time TIMESTAMPTZ,
+    distance_m DOUBLE PRECISION,
+    is_completed BOOLEAN,
+    is_progressive BOOLEAN,
+    x_origin DOUBLE PRECISION,
+    y_origin DOUBLE PRECISION,
+    x_target DOUBLE PRECISION,
+    y_target DOUBLE PRECISION,
+    trajectory JSONB
+);
+
+-- 7. Team Passing Stats (one row per team per match)
+CREATE TABLE IF NOT EXISTS team_passing_stats (
+    match_id INT REFERENCES matches(match_id),
+    team_id INT REFERENCES teams(team_id),
+    total_passes INT DEFAULT 0,
+    completed_passes INT DEFAULT 0,
+    pass_accuracy DOUBLE PRECISION DEFAULT 0.0,
+    total_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
+    progressive_passes INT DEFAULT 0,
+    avg_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (match_id, team_id)
+);
+
+-- 8. Team Dribbling Stats (one row per team per match)
 CREATE TABLE IF NOT EXISTS team_dribbling_stats (
     match_id INT REFERENCES matches(match_id),
     team_id INT REFERENCES teams(team_id),
