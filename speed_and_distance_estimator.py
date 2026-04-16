@@ -128,7 +128,7 @@ def apply_homography_to_tracks(tracks, homography_manager):
     Using Bottom-Center (Feet) logic to fix perspective error.
     """
     for object_name, object_tracks in tracks.items():
-        if object_name in ["ball", "referees"]:
+        if object_name in ["referees"]:
             continue
 
         for frame_idx, frame_data in object_tracks.items():
@@ -171,7 +171,7 @@ class SpeedAndDistance_Estimator:
 
     def smooth_positions(self, tracks):
         for object_name, object_tracks in tracks.items():
-            if object_name in ["ball", "referees"]:
+            if object_name in ["referees"]:
                 continue
 
             # 1. Collect all position data per track_id
@@ -222,7 +222,7 @@ class SpeedAndDistance_Estimator:
         MAX_SPEED_THRESH = 35.0 # Strict cap at Elite Sprint speed (~35 km/h)
 
         for object_name, object_tracks in tracks.items():
-            if object_name in ["ball", "referees"]:
+            if object_name in ["referees"]:
                 continue
 
             frame_nums = sorted(object_tracks.keys())

@@ -6,6 +6,7 @@ import { SidebarNav } from "@/components/sidebar-nav"
 import { IndividualPlayerStats } from "@/components/individual-player-stats"
 import { DribblingStats } from "@/components/panels/dribbling-stats"
 import { ShootingStats } from "@/components/panels/shooting-stats"
+import { PassingStats } from "@/components/panels/passing-stats"
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard"
 import { ReportPage } from "@/components/panels/report-page"
 import { MatchReplay } from "@/components/panels/match-replay"
@@ -21,6 +22,8 @@ export function Dashboard({ onBack }: { onBack: () => void }) {
     switch (activeTab) {
       case "dribbling":
         return <DribblingStats />
+      case "passing":
+        return <PassingStats />
       case "shooting":
         return <ShootingStats />
       case "match-replay":
@@ -101,6 +104,7 @@ export function Dashboard({ onBack }: { onBack: () => void }) {
               <span className="text-[#e8f5ee] font-medium">
                 {activeTab === "player-stats" && "Individual Player Stats"}
                 {activeTab === "dribbling" && "Dribbling Effectiveness"}
+                {activeTab === "passing" && "Passing Accuracy"}
                 {activeTab === "shooting" && "Shooting Statistics"}
                 {activeTab === "match-replay" && "Neural Match Analysis"}
                 {activeTab === "upload" && "Upload Video"}
