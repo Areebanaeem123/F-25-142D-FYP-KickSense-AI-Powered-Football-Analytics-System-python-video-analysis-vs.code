@@ -33,8 +33,8 @@ from db_connect import KicksenseDB
 # CONFIGURATION
 # ============================================================
 
-VIDEO_PATH = "test-4.mp4"
-MODEL_PATH = "models/soccer_detector_1280_rtx40603/weights/best.pt"
+VIDEO_PATH = "/home/areeba/Desktop/real.mp4"
+MODEL_PATH = "/home/areeba/Downloads/weights/best.pt"
 
 OUTPUT_VIDEO_PATH = "video_results/advanced_player_tracking_output.mp4"
 STATS_CSV_PATH = "video_results/player_stats_advanced.csv"
@@ -54,7 +54,7 @@ def load_db_config():
     }
 
 
-def persist_results_to_db(tracks, player_stats, foul_risk_map, dribbling_data, shooting_data, passing_data, fps, total_frames, match_id=1):
+def persist_results_to_db(tracks, player_stats, foul_risk_map, dribbling_data, shooting_data, passing_data, formation_summary, fps, total_frames, match_id=1):
 
     """
     Persist frame-level tracking rows + aggregated player stats + dribbling stats to TimescaleDB.
@@ -71,7 +71,6 @@ def persist_results_to_db(tracks, player_stats, foul_risk_map, dribbling_data, s
 
         start_ts = datetime.now(timezone.utc)
         safe_fps = max(1, int(fps))
-
         for frame_idx in range(total_frames):
             timestamp = start_ts + timedelta(seconds=frame_idx / safe_fps)
             detections = []
@@ -108,7 +107,9 @@ def persist_results_to_db(tracks, player_stats, foul_risk_map, dribbling_data, s
         db.upsert_dribbling_stats(dribbling_data, match_id=match_id)
         db.upsert_shooting_stats(shooting_data, fps=safe_fps, match_id=match_id)
         db.upsert_passing_stats(passing_data, fps=safe_fps, match_id=match_id)
-        print("✅ TimescaleDB updated with tracking_data, player_match_stats, dribbling, shooting, and passing stats")
+        db.upsert_possession_stats(passing_data.get("possession_stats"), match_id=match_id)
+        db.upsert_formation_stats(formation_summary, match_id=match_id)
+        print("✅ TimescaleDB updated with tracking_data, player_match_stats, dribbling, shooting, passing, possession, and formation stats")
 
     finally:
         db.close()
@@ -217,7 +218,7 @@ def main():
         pixels_per_meter=None
     )
 
-    processor.process_video()
+    processor.process_video(frames_limit=None)
     processor.post_process()
     results = processor.get_results()
 
@@ -341,6 +342,7 @@ def main():
         dribbling_data=dribbling_data,
         shooting_data=shooting_data,
         passing_data=passing_data,
+        formation_summary=formation_summary,
         fps=fps,
         total_frames=total_frames,
         match_id=1,

@@ -77,10 +77,23 @@ async function readPassingData(matchId: number, playerId: number | null = null) 
         `
         const teamResult = await client.query(teamQuery, [matchId])
 
+        // 4. Team-level possession stats
+        const possessionQuery = `
+            SELECT
+                team_id,
+                possession_percentage,
+                possession_frames
+            FROM team_possession_stats
+            WHERE match_id = $1
+            ORDER BY team_id ASC
+        `
+        const possessionResult = await client.query(possessionQuery, [matchId])
+
         return {
             pass_events: eventsResult.rows,
             player_passing_stats: playerResult.rows,
             team_passing_stats: teamResult.rows,
+            possession_stats: possessionResult.rows,
         }
     } finally {
         await client.end()

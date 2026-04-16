@@ -311,13 +311,15 @@ class OptimizedTrackingProcessor:
         self.old_gray = frame_gray
         return (0, 0)
     
-    def process_video(self):
+    def process_video(self, frames_limit=None):
         """Main tracking loop with optimizations"""
-        print("\n🎬 Starting optimized video processing...")
+        print(f"\n🎬 Starting optimized video processing... (Limit: {frames_limit if frames_limit else 'None'})")
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         frame_idx = 0
         
         while True:
+            if frames_limit and frame_idx >= frames_limit:
+                break
             frame_start = time.time()
             
             ret, frame = self.cap.read()

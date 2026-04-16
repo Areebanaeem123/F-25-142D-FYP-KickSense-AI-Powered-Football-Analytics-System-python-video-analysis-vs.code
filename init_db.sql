@@ -84,10 +84,13 @@ CREATE TABLE IF NOT EXISTS shot_events (
     distance_m DOUBLE PRECISION,
     angle_deg DOUBLE PRECISION,
     power_ms DOUBLE PRECISION,
+    xg DOUBLE PRECISION DEFAULT 0.0,
     is_on_target BOOLEAN,
     is_goal BOOLEAN,
+    is_big_chance BOOLEAN DEFAULT FALSE,
     x_origin DOUBLE PRECISION,
-    y_origin DOUBLE PRECISION
+    y_origin DOUBLE PRECISION,
+    trajectory JSONB
 );
 
 
@@ -121,6 +124,7 @@ CREATE TABLE IF NOT EXISTS team_passing_stats (
     total_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
     progressive_passes INT DEFAULT 0,
     avg_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
+    interceptions INT DEFAULT 0,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (match_id, team_id)
 );
@@ -135,6 +139,28 @@ CREATE TABLE IF NOT EXISTS team_dribbling_stats (
     total_distance_m DOUBLE PRECISION DEFAULT 0.0,
     progressive_dribbles INT DEFAULT 0,
     avg_dribble_distance_m DOUBLE PRECISION DEFAULT 0.0,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (match_id, team_id)
+);
+
+-- 9. Team Possession Stats
+CREATE TABLE IF NOT EXISTS team_possession_stats (
+    match_id INT REFERENCES matches(match_id),
+    team_id INT REFERENCES teams(team_id),
+    possession_percentage DOUBLE PRECISION DEFAULT 0.0,
+    possession_frames INT DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (match_id, team_id)
+);
+
+-- 10. Team Formation Stats
+CREATE TABLE IF NOT EXISTS team_formation_stats (
+    match_id INT REFERENCES matches(match_id),
+    team_id INT REFERENCES teams(team_id),
+    formation VARCHAR(20),
+    status VARCHAR(50),
+    avg_area DOUBLE PRECISION DEFAULT 0.0,
+    area_per_player DOUBLE PRECISION DEFAULT 0.0,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (match_id, team_id)
 );

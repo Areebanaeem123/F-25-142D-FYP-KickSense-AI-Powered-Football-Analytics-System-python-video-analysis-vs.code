@@ -20,6 +20,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PlayerShotChart } from "./panels/player-shot-chart"
+import { TeamPossessionOverview } from "./panels/team-possession-overview"
 
 interface PlayerStat {
   Track_ID: number
@@ -173,6 +174,8 @@ export function IndividualPlayerStats() {
           </SelectContent>
         </Select>
       </div>
+
+      <TeamPossessionOverview />
 
       {selectedPlayer !== "all" && selectedPlayerStats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-700">

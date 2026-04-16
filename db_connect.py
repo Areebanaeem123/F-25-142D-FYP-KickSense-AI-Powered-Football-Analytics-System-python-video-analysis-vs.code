@@ -2,6 +2,7 @@ import psycopg2
 from psycopg2.extras import execute_values
 from typing import Dict
 import json
+import math
 
 class KicksenseDB:
     def __init__(self, db_config):
@@ -160,6 +161,27 @@ class KicksenseDB:
                 total_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
                 progressive_passes INT DEFAULT 0,
                 avg_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
+                interceptions INT DEFAULT 0,
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                PRIMARY KEY (match_id, team_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS team_possession_stats (
+                match_id INT REFERENCES matches(match_id),
+                team_id INT REFERENCES teams(team_id),
+                possession_percentage DOUBLE PRECISION DEFAULT 0.0,
+                possession_frames INT DEFAULT 0,
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                PRIMARY KEY (match_id, team_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS team_formation_stats (
+                match_id INT REFERENCES matches(match_id),
+                team_id INT REFERENCES teams(team_id),
+                formation VARCHAR(20),
+                status VARCHAR(50),
+                avg_area DOUBLE PRECISION DEFAULT 0.0,
+                area_per_player DOUBLE PRECISION DEFAULT 0.0,
                 updated_at TIMESTAMPTZ DEFAULT NOW(),
                 PRIMARY KEY (match_id, team_id)
             );
@@ -176,6 +198,9 @@ class KicksenseDB:
                 updated_at TIMESTAMPTZ DEFAULT NOW(),
                 PRIMARY KEY (match_id, team_id)
             );
+
+            -- Schema evolution
+            ALTER TABLE team_passing_stats ADD COLUMN IF NOT EXISTS interceptions INT DEFAULT 0;
         """
         try:
             self.cursor.execute(query)
@@ -193,6 +218,8 @@ class KicksenseDB:
             self.cursor.execute("DELETE FROM pass_events WHERE match_id = %s", (match_id,))
             self.cursor.execute("DELETE FROM team_passing_stats WHERE match_id = %s", (match_id,))
             self.cursor.execute("DELETE FROM team_dribbling_stats WHERE match_id = %s", (match_id,))
+            self.cursor.execute("DELETE FROM team_possession_stats WHERE match_id = %s", (match_id,))
+            self.cursor.execute("DELETE FROM team_formation_stats WHERE match_id = %s", (match_id,))
             self.cursor.execute("DELETE FROM shot_events WHERE match_id = %s", (match_id,))
             self.cursor.execute("DELETE FROM player_match_stats WHERE match_id = %s", (match_id,))
             self.conn.commit()
@@ -585,6 +612,79 @@ class KicksenseDB:
             except Exception as e:
                 print(f"❌ Failed to upsert team passing stats: {e}")
                 self.conn.rollback()
+
+    def upsert_possession_stats(self, possession_data: Dict, match_id=1):
+        """
+        Upsert team possession statistics.
+        """
+        if not self.conn or not possession_data:
+            return
+        
+        query = """
+            INSERT INTO team_possession_stats
+            (match_id, team_id, possession_percentage, possession_frames)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (match_id, team_id)
+            DO UPDATE SET
+                possession_percentage = EXCLUDED.possession_percentage,
+                possession_frames = EXCLUDED.possession_frames,
+                updated_at = NOW()
+        """
+        try:
+            for team_id, stats in possession_data.items():
+                self.cursor.execute(query, (
+                    match_id,
+                    team_id,
+                    stats.get("percentage", 0.0),
+                    stats.get("frames", 0)
+                ))
+            self.conn.commit()
+            print("✅ Team possession stats upserted successfully")
+        except Exception as e:
+            print(f"❌ Failed to upsert team possession stats: {e}")
+            self.conn.rollback()
+
+    def upsert_formation_stats(self, formation_summary: Dict, match_id=1):
+        """
+        Upsert team formation statistics.
+        """
+        if not self.conn or not formation_summary:
+            return
+        
+        query = """
+            INSERT INTO team_formation_stats
+            (match_id, team_id, formation, status, avg_area, area_per_player)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (match_id, team_id)
+            DO UPDATE SET
+                formation = EXCLUDED.formation,
+                status = EXCLUDED.status,
+                avg_area = EXCLUDED.avg_area,
+                area_per_player = EXCLUDED.area_per_player,
+                updated_at = NOW()
+        """
+        try:
+            for team_id, stats in formation_summary.items():
+                def clean_val(v):
+                    if v is None: return None
+                    try:
+                        return float(v) if math.isfinite(float(v)) else None
+                    except (ValueError, TypeError):
+                        return None
+
+                self.cursor.execute(query, (
+                    match_id,
+                    team_id,
+                    stats.get("formation"),
+                    stats.get("status"),
+                    clean_val(stats.get("avg_area")),
+                    clean_val(stats.get("area_per_player"))
+                ))
+            self.conn.commit()
+            print("✅ Team formation stats upserted successfully")
+        except Exception as e:
+            print(f"❌ Failed to upsert team formation stats: {e}")
+            self.conn.rollback()
 
     def close(self):
         self.flush() # Save whatever is left

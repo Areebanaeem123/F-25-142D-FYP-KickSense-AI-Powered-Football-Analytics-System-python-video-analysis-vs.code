@@ -45,10 +45,17 @@ interface TeamPassingStats {
   avg_pass_distance_m: number
 }
 
+interface PossessionStats {
+  team_id: number
+  possession_percentage: number
+  possession_frames: number
+}
+
 export function PassingStats() {
   const [passEvents, setPassEvents] = useState<PassEvent[]>([])
   const [playerStats, setPlayerStats] = useState<PlayerPassingStats[]>([])
   const [teamStats, setTeamStats] = useState<TeamPassingStats[]>([])
+  const [possessionStats, setPossessionStats] = useState<PossessionStats[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -60,6 +67,7 @@ export function PassingStats() {
           setPassEvents(data.pass_events || [])
           setPlayerStats(data.player_passing_stats || [])
           setTeamStats(data.team_passing_stats || [])
+          setPossessionStats(data.possession_stats || [])
         }
       } catch (err) {
         console.error("Error fetching passing stats:", err)
@@ -79,7 +87,7 @@ export function PassingStats() {
   }
 
   // ---- Derived values ----
-  const totalPasses    = teamStats.reduce((s, t) => s + t.total_passes, 0)
+  const totalPasses = teamStats.reduce((s, t) => s + t.total_passes, 0)
   const totalCompleted = teamStats.reduce((s, t) => s + t.completed_passes, 0)
   const globalAccuracy = totalPasses > 0 ? (totalCompleted / totalPasses) * 100 : 0
   const totalProgressive = teamStats.reduce((s, t) => s + t.progressive_passes, 0)
@@ -98,9 +106,9 @@ export function PassingStats() {
   const teamA = teamStats.find((t) => t.team_id === 0)
   const pieData = teamA
     ? [
-        { name: "Completed",   value: teamA.completed_passes,                              fill: "#006747" },
-        { name: "Incomplete",  value: teamA.total_passes - teamA.completed_passes,          fill: "#ef4444" },
-      ]
+      { name: "Completed", value: teamA.completed_passes, fill: "#006747" },
+      { name: "Incomplete", value: teamA.total_passes - teamA.completed_passes, fill: "#ef4444" },
+    ]
     : []
 
   // Pass origins scatter data
@@ -137,10 +145,10 @@ export function PassingStats() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Passes",        value: totalPasses,                    unit: ""   },
-          { label: "Completion %",         value: globalAccuracy.toFixed(1),      unit: "%"  },
-          { label: "Progressive Passes",   value: totalProgressive,               unit: ""   },
-          { label: "Avg Distance",         value: avgDistance.toFixed(1),         unit: "m"  },
+          { label: "Total Passes", value: totalPasses, unit: "" },
+          { label: "Completion %", value: globalAccuracy.toFixed(1), unit: "%" },
+          { label: "Progressive Passes", value: totalProgressive, unit: "" },
+          { label: "Avg Distance", value: avgDistance.toFixed(1), unit: "m" },
         ].map(({ label, value, unit }) => (
           <Card key={label} className="glass-card p-5 border-white/5 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-24 h-24 bg-[#006747]/10 rounded-full -mr-12 -mt-12 blur-3xl group-hover:bg-[#006747]/20 transition-all duration-500" />
@@ -157,33 +165,47 @@ export function PassingStats() {
         {/* Team stats cards */}
         <div className="space-y-4">
           <h2 className="text-base font-black text-white/40 tracking-[0.2em] ml-1">Team Overview</h2>
-          {teamStats.map((t) => (
-            <Card key={t.team_id} className="glass-card p-6 border-white/5 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#006747]/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-[#006747]/20 transition-all duration-500" />
-              <div className="flex items-center justify-between mb-6 relative z-10">
-                <h3 className="text-2xl font-black text-white tracking-tighter">
-                  Team {String.fromCharCode(65 + t.team_id)}
-                </h3>
-                <Badge className={`${getAccuracyBg(t.pass_accuracy)} ${getAccuracyColor(t.pass_accuracy)} border-none px-4 py-1.5 rounded-xl font-black text-base shadow-xl`}>
-                  {t.pass_accuracy.toFixed(1)}%
-                </Badge>
-              </div>
-              <div className="grid grid-cols-3 gap-4 relative z-10">
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                  <p className="text-white/30 text-sm font-black tracking-widest mb-1">Attempted</p>
-                  <p className="text-white text-3xl font-black">{t.total_passes}</p>
+          {teamStats.map((t) => {
+            const possession = possessionStats.find((p) => p.team_id === t.team_id)
+            return (
+              <Card key={t.team_id} className="glass-card p-6 border-white/5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#006747]/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-[#006747]/20 transition-all duration-500" />
+                <div className="flex items-center justify-between mb-6 relative z-10">
+                  <h3 className="text-2xl font-black text-white tracking-tighter">
+                    Team {String.fromCharCode(65 + t.team_id)}
+                  </h3>
+                  <div className="flex gap-2">
+                    <Badge className={`${getAccuracyBg(t.pass_accuracy)} ${getAccuracyColor(t.pass_accuracy)} border-none px-4 py-1.5 rounded-xl font-black text-base shadow-xl`}>
+                      {t.pass_accuracy.toFixed(1)}% Acc
+                    </Badge>
+                    {possession && (
+                      <Badge className="bg-blue-600/20 text-blue-400 border-none px-4 py-1.5 rounded-xl font-black text-base shadow-xl">
+                        {possession.possession_percentage.toFixed(1)}% Pos
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                  <p className="text-white/30 text-sm font-black tracking-widest mb-1">Completed</p>
-                  <p className="text-[#006747] text-3xl font-black">{t.completed_passes}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 relative z-10">
+                  <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                    <p className="text-white/30 text-sm font-black tracking-widest mb-1">Passes</p>
+                    <p className="text-white text-3xl font-black">{t.total_passes}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                    <p className="text-white/30 text-sm font-black tracking-widest mb-1">Accurate</p>
+                    <p className="text-[#006747] text-3xl font-black">{t.completed_passes}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                    <p className="text-white/30 text-sm font-black tracking-widest mb-1">Progressive</p>
+                    <p className="text-white text-3xl font-black">{t.progressive_passes}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                    <p className="text-white/30 text-sm font-black tracking-widest mb-1">Control</p>
+                    <p className="text-blue-400 text-3xl font-black">{possession ? `${possession.possession_percentage.toFixed(0)}%` : "N/A"}</p>
+                  </div>
                 </div>
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                  <p className="text-white/30 text-sm font-black tracking-widest mb-1">Progressive</p>
-                  <p className="text-white text-3xl font-black">{t.progressive_passes}</p>
-                </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            )
+          })}
         </div>
 
         {/* Completion pie (Team A) */}

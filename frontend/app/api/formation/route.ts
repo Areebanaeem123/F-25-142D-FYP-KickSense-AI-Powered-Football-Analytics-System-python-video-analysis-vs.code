@@ -78,6 +78,69 @@ export async function GET(request: Request) {
     await client.connect()
 
     try {
+      // 1. Try to fetch persisted formation stats
+      const persisted = await client.query(
+        `
+        SELECT team_id, formation, status, avg_area, area_per_player
+        FROM team_formation_stats
+        WHERE match_id = $1 AND team_id = $2
+        `,
+        [matchId, teamId]
+      )
+
+      if (persisted.rows.length > 0) {
+        const row = persisted.rows[0]
+
+        // We still need player positions for the tactical map visualization
+        const positionsResult = await client.query(
+          `
+          SELECT track_id, x_coord, y_coord
+          FROM tracking_data
+          WHERE match_id = $1
+            AND team_id = $2
+            AND time = (SELECT MAX(time) FROM tracking_data WHERE match_id = $1 AND team_id = $2)
+          ORDER BY track_id
+          `,
+          [matchId, teamId]
+        )
+        const pts = positionsResult.rows.map((r) => ({ id: r.track_id, x: r.x_coord, y: r.y_coord }))
+        const xs = pts.map((p) => p.x)
+        const ys = pts.map((p) => p.y)
+        const minX = Math.min(...xs, -50), maxX = Math.max(...xs, 50)
+        const minY = Math.min(...ys, -35), maxY = Math.max(...ys, 35)
+
+        const playerPositions = pts.map((p) => ({
+          x: `${toPercent(p.x, minX, maxX).toFixed(1)}%`,
+          y: `${toPercent(p.y, minY, maxY).toFixed(1)}%`,
+          number: p.id,
+        }))
+
+        // Fetch possession
+        const possessionResult = await client.query(
+          `SELECT possession_percentage FROM team_possession_stats WHERE match_id = $1 AND team_id = $2`,
+          [matchId, teamId]
+        )
+        const possession = possessionResult.rows[0]?.possession_percentage || 0
+
+        return NextResponse.json({
+          detectedFormation: row.formation,
+          tacticalStatus: row.status,
+          convexHullArea: Number((row.avg_area || 0).toFixed(2)),
+          avgPlayerSpacing: Number((row.area_per_player || 0).toFixed(2)),
+          teamWidth: 0,
+          teamDepth: 0,
+          possessionPercentage: Number(possession.toFixed(1)),
+          playerPositions,
+        })
+      }
+
+      // 2. Fallback to dynamic calculation
+      // Fetch possession anyway if available
+      const possessionResult = await client.query(
+        `SELECT possession_percentage FROM team_possession_stats WHERE match_id = $1 AND team_id = $2`,
+        [matchId, teamId]
+      )
+      const possession = possessionResult.rows[0]?.possession_percentage || 0
       const latest = await client.query(
         `
         SELECT MAX(time) AS max_time
@@ -96,6 +159,7 @@ export async function GET(request: Request) {
           avgPlayerSpacing: 0,
           teamWidth: 0,
           teamDepth: 0,
+          possessionPercentage: Number(possession.toFixed(1)),
           playerPositions: [],
         })
       }
@@ -162,6 +226,7 @@ export async function GET(request: Request) {
         avgPlayerSpacing: Number(spacing.toFixed(2)),
         teamWidth: Number(width.toFixed(2)),
         teamDepth: Number(depth.toFixed(2)),
+        possessionPercentage: Number(possession.toFixed(1)),
         playerPositions,
       })
     } finally {
