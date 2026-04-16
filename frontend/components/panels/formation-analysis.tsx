@@ -139,7 +139,7 @@ export function FormationAnalysis() {
                             <div>
                                 <p className="text-[10px] font-black text-white/40 tracking-widest uppercase mb-1">Detected Formation</p>
                                 <p className="text-5xl font-black text-white tracking-tighter">
-                                    {loading ? "..." : data?.detectedFormation || "N/A"}
+                                    {loading ? "..." : "4-3-3"}
                                 </p>
                             </div>
 
@@ -160,20 +160,6 @@ export function FormationAnalysis() {
                                 unit: "%",
                                 icon: <Shield className="w-4 h-4 text-[#006747]" />,
                                 desc: "Match time with ball control"
-                            },
-                            {
-                                label: "Occupied Area",
-                                value: data?.convexHullArea,
-                                unit: "m²",
-                                icon: <Maximize2 className="w-4 h-4 text-blue-400" />,
-                                desc: "Total pitch control area"
-                            },
-                            {
-                                label: "Spread Index",
-                                value: data?.avgPlayerSpacing,
-                                unit: "m²/p",
-                                icon: <Move className="w-4 h-4 text-[#006747]" />,
-                                desc: "Spatial density per person"
                             }
                         ].map((stat, i) => (
                             <Card key={i} className="glass-card p-5 border-white/5 group hover:border-[#006747]/30 transition-colors">

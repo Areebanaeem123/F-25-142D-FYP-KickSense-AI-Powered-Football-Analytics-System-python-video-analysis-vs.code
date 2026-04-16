@@ -35,7 +35,7 @@ const navItems: NavItem[] = [
   },
   {
     id: "dribbling",
-    label: "Dribbling Effectiveness",
+    label: "Dribbling",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="1" />
@@ -53,17 +53,6 @@ const navItems: NavItem[] = [
         <path d="M5 12h14" />
         <path d="m12 5 7 7-7 7" />
         <circle cx="5" cy="12" r="2" />
-      </svg>
-    ),
-  },
-  {
-    id: "shooting",
-    label: "Shooting Statistics",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="10" />
-        <path d="m16 10-4 4-4-4" />
-        <path d="M12 2v10" />
       </svg>
     ),
   },

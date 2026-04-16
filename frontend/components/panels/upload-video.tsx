@@ -63,8 +63,8 @@ export function UploadVideoPanel() {
         tabIndex={0}
         aria-label="Drop zone for video upload"
         className={`glass-card cursor-pointer rounded-3xl p-16 text-center transition-all duration-500 border-2 border-dashed ${isDragging
-            ? "border-[#006747] bg-[#006747]/10 scale-[1.01]"
-            : "border-white/5 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+          ? "border-[#006747] bg-[#006747]/10 scale-[1.01]"
+          : "border-white/5 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
           }`}
       >
         <input
@@ -154,7 +154,7 @@ export function UploadVideoPanel() {
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              Initiate Neural Analysis
+              Initiate Analysis
             </button>
           )}
         </div>

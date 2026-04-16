@@ -136,19 +136,13 @@ export function PassingStats() {
             Accuracy, distance and progression metrics
           </p>
         </div>
-        <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2">
-          <p className="text-sm font-black text-white/30 tracking-widest">Global Accuracy</p>
-          <p className="text-2xl font-black text-[#006747]">{globalAccuracy.toFixed(1)}%</p>
-        </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: "Total Passes", value: totalPasses, unit: "" },
-          { label: "Completion %", value: globalAccuracy.toFixed(1), unit: "%" },
-          { label: "Progressive Passes", value: totalProgressive, unit: "" },
-          { label: "Avg Distance", value: avgDistance.toFixed(1), unit: "m" },
+          { label: "Completion %", value: globalAccuracy.toFixed(1), unit: "%" }
         ].map(({ label, value, unit }) => (
           <Card key={label} className="glass-card p-5 border-white/5 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-24 h-24 bg-[#006747]/10 rounded-full -mr-12 -mt-12 blur-3xl group-hover:bg-[#006747]/20 transition-all duration-500" />
@@ -160,8 +154,8 @@ export function PassingStats() {
         ))}
       </div>
 
-      {/* Team Overview + Pie */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Team Overview */}
+      <div className="grid grid-cols-1 gap-6">
         {/* Team stats cards */}
         <div className="space-y-4">
           <h2 className="text-base font-black text-white/40 tracking-[0.2em] ml-1">Team Overview</h2>
@@ -207,40 +201,10 @@ export function PassingStats() {
             )
           })}
         </div>
-
-        {/* Completion pie (Team A) */}
-        <Card className="glass-card p-6 border-white/5 flex flex-col">
-          <h3 className="text-base font-black text-white tracking-widest mb-6">
-            Pass Outcomes (Team A)
-          </h3>
-          <div className="flex-1 min-h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, i) => (
-                    <Cell key={`cell-${i}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
-                />
-                <Legend iconType="circle" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
       </div>
 
-      {/* Team Comparison Bar + Pass Origins Scatter */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Team Comparison Bar */}
+      <div className="grid grid-cols-1 gap-6">
         <Card className="glass-card p-6 border-white/5">
           <h3 className="text-base font-black text-white tracking-widest mb-6">Team Comparison</h3>
           <div className="h-[300px]">
@@ -260,33 +224,6 @@ export function PassingStats() {
             </ResponsiveContainer>
           </div>
         </Card>
-
-        {/* Pass origins scatter map */}
-        <Card className="glass-card p-6 border-white/5">
-          <h3 className="text-base font-black text-white tracking-widest mb-2">Pass Origins</h3>
-          <p className="text-xs text-white/30 font-bold tracking-widest mb-4">
-            <span className="text-[#006747]">■</span> Completed &nbsp;
-            <span className="text-[#ef4444]">■</span> Incomplete
-          </p>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart>
-                <CartesianGrid strokeDasharray="3 3" stroke="white" opacity={0.05} />
-                <XAxis dataKey="x" name="X (m)" type="number" domain={[-55, 55]}
-                  stroke="white" opacity={0.4} fontSize={11} axisLine={false} tickLine={false} />
-                <YAxis dataKey="y" name="Y (m)" type="number" domain={[-35, 35]}
-                  stroke="white" opacity={0.4} fontSize={11} axisLine={false} tickLine={false} />
-                <ZAxis range={[30, 30]} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
-                  cursor={{ strokeDasharray: "3 3" }}
-                />
-                <Scatter name="Completed" data={scatterCompleted} fill="#006747" opacity={0.8} />
-                <Scatter name="Incomplete" data={scatterIncomplete} fill="#ef4444" opacity={0.8} />
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
       </div>
 
       {/* Player breakdown table */}
@@ -301,9 +238,6 @@ export function PassingStats() {
                 <th className="px-6 py-4 text-left   text-sm font-black text-white/30 tracking-widest">Player</th>
                 <th className="px-6 py-4 text-center text-sm font-black text-white/30 tracking-widest">Attempts</th>
                 <th className="px-6 py-4 text-center text-sm font-black text-white/30 tracking-widest">Completed</th>
-                <th className="px-6 py-4 text-center text-sm font-black text-white/30 tracking-widest">Accuracy</th>
-                <th className="px-6 py-4 text-center text-sm font-black text-white/30 tracking-widest">Avg Dist</th>
-                <th className="px-6 py-4 text-center text-sm font-black text-white/30 tracking-widest">Progressive</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -319,18 +253,11 @@ export function PassingStats() {
                   </td>
                   <td className="px-6 py-4 text-center text-white/60 font-mono italic">{p.passes_attempted}</td>
                   <td className="px-6 py-4 text-center text-[#006747] font-black">{p.passes_completed}</td>
-                  <td className="px-6 py-4 text-center">
-                    <Badge className={`${getAccuracyBg(p.pass_accuracy)} ${getAccuracyColor(p.pass_accuracy)} border-none px-3 py-1 rounded-lg font-black text-sm`}>
-                      {p.pass_accuracy.toFixed(1)}%
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 text-center text-white font-bold">{p.avg_pass_distance_m.toFixed(1)}m</td>
-                  <td className="px-6 py-4 text-center text-white/60 font-mono">{p.progressive_passes}</td>
                 </tr>
               ))}
               {playerStats.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-white/30 font-bold tracking-widest">
+                  <td colSpan={3} className="px-6 py-12 text-center text-white/30 font-bold tracking-widest">
                     No passing data available — run the pipeline first
                   </td>
                 </tr>
