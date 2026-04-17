@@ -62,12 +62,9 @@ CREATE TABLE IF NOT EXISTS player_match_stats (
     shot_accuracy DOUBLE PRECISION DEFAULT 0.0,
     avg_shot_distance_m DOUBLE PRECISION DEFAULT 0.0,
     max_shot_power_ms DOUBLE PRECISION DEFAULT 0.0,
-    -- Passing Stats
-    passes_attempted INT DEFAULT 0,
-    passes_completed INT DEFAULT 0,
-    pass_accuracy DOUBLE PRECISION DEFAULT 0.0,
-    avg_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
-    progressive_passes INT DEFAULT 0,
+    -- Jersey Number Recognition
+    jersey_number INT,
+    player_name VARCHAR(100),
     sub_priority DOUBLE PRECISION DEFAULT 0.0,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (match_id, track_id)

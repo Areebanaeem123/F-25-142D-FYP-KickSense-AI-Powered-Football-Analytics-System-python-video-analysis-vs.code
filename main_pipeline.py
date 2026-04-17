@@ -25,7 +25,7 @@ from dribbling_analyzer import DribblingAnalyzer
 from shooting_analyzer import ShootingAnalyzer
 from passing_analyzer import PassingAnalyzer
 from substitution_recommender import SubstitutionRecommender
-from formation_analyzer import FormationAnalyzer
+from lineup_assigner import LineupAssigner
 from db_connect import KicksenseDB
 
 
@@ -42,6 +42,21 @@ STATS_CSV_PATH = "video_results/player_stats_advanced.csv"
 DISPLAY_SIZE = (900, 600)
 SPRINT_THRESHOLD_MS = 7.0  # ~25.2 km/h
 
+# ============================================================
+# LINEUP CONFIGURATION
+# Set to None to disable lineup constraints for a team.
+# Fill in actual jersey numbers from the match lineup.
+# ============================================================
+TEAM_A_LINEUP = None  # e.g. [1, 2, 4, 5, 7, 8, 10, 11, 14, 17, 23]
+TEAM_B_LINEUP = None  # e.g. [1, 3, 5, 6, 8, 9, 11, 14, 19, 21, 27]
+
+# Optional: Map jersey numbers to player names for each team.
+# team_id -> {jersey_number: "Player Name"}
+PLAYER_NAMES: dict = {
+    # 0: {10: "Lionel Messi", 7: "Cristiano Ronaldo", ...},
+    # 1: {9: "Robert Lewandowski", ...},
+}
+
 
 def load_db_config():
     """Load TimescaleDB config from environment with local defaults."""
@@ -54,7 +69,9 @@ def load_db_config():
     }
 
 
-def persist_results_to_db(tracks, player_stats, foul_risk_map, dribbling_data, shooting_data, passing_data, formation_summary, fps, total_frames, match_id=1):
+def persist_results_to_db(tracks, player_stats, foul_risk_map, dribbling_data,
+                          shooting_data, fps, total_frames, match_id=1,
+                          jersey_recognizer=None, lineup_assigner=None):
 
     """
     Persist frame-level tracking rows + aggregated player stats + dribbling stats to TimescaleDB.
@@ -106,10 +123,19 @@ def persist_results_to_db(tracks, player_stats, foul_risk_map, dribbling_data, s
         db.upsert_player_stats(player_stats, foul_risk_map=foul_risk_map, match_id=match_id)
         db.upsert_dribbling_stats(dribbling_data, match_id=match_id)
         db.upsert_shooting_stats(shooting_data, fps=safe_fps, match_id=match_id)
-        db.upsert_passing_stats(passing_data, fps=safe_fps, match_id=match_id)
-        db.upsert_possession_stats(passing_data.get("possession_stats"), match_id=match_id)
-        db.upsert_formation_stats(formation_summary, match_id=match_id)
-        print("✅ TimescaleDB updated with tracking_data, player_match_stats, dribbling, shooting, passing, possession, and formation stats")
+
+        # Persist jersey number assignments
+        if jersey_recognizer is not None:
+            assignments = jersey_recognizer.get_all_assignments()
+            names = lineup_assigner.get_all_names() if lineup_assigner else {}
+            db.upsert_jersey_numbers(
+                assignments=assignments,
+                player_names=names,
+                match_id=match_id,
+            )
+
+        print("✅ TimescaleDB updated with tracking_data, player_match_stats, "
+              "dribbling, shooting, and jersey number stats")
 
     finally:
         db.close()
@@ -226,6 +252,7 @@ def main():
     track_class_map = results["track_class_map"]
     stable_class_map = results.get("stable_class_map", track_class_map)
     camera_movement = results["camera_movement"]
+    jersey_recognizer = results.get("jersey_recognizer")
 
     fps = results["fps"]
     width = results["width"]
@@ -324,6 +351,61 @@ def main():
         foul_risk_map=foul_risk_map
     )
 
+    # --------------------------------------------------------
+    # STEP 5: JERSEY NUMBER RECOGNITION (Post-processing)
+    # --------------------------------------------------------
+
+    print("\n" + "=" * 70)
+    print("STEP 5: Jersey Number Assignment")
+    print("-" * 70)
+
+    lineup_assigner = None
+    if jersey_recognizer is not None:
+        # Print OCR stats before lineup constraints
+        ocr_stats = jersey_recognizer.get_prediction_stats()
+        ocr_assigned = sum(1 for s in ocr_stats.values() if s["assigned"] is not None)
+        print(f"🔢 OCR recognised {ocr_assigned}/{len(ocr_stats)} tracks before lineup constraints")
+
+        # Apply lineup constraints if configured
+        if TEAM_A_LINEUP is not None or TEAM_B_LINEUP is not None:
+            lineup_assigner = LineupAssigner(
+                team_a_numbers=TEAM_A_LINEUP,
+                team_b_numbers=TEAM_B_LINEUP,
+                player_names=PLAYER_NAMES,
+            )
+            lineup_assigner.assign(jersey_recognizer, tracks, stable_class_map)
+            print("✅ Lineup constraints applied")
+        else:
+            print("ℹ️  No lineup configured — using OCR results only")
+
+        # Inject final jersey numbers into player_stats for DB persistence
+        all_assignments = jersey_recognizer.get_all_assignments()
+        all_names = lineup_assigner.get_all_names() if lineup_assigner else {}
+        for item in player_stats:
+            tid = int(item["track_id"])
+            jn = all_assignments.get(tid)
+            if jn is not None:
+                item["jersey_number"] = jn
+                item["player_name"] = all_names.get(tid, "")
+
+        # Backfill jersey_number into tracks dict for rendering
+        for obj_name in ("players", "goalkeepers"):
+            for fdata in tracks.get(obj_name, {}).values():
+                for sid, info in fdata.items():
+                    jn = all_assignments.get(sid)
+                    if jn is not None:
+                        info["jersey_number"] = jn
+
+        # Print summary
+        final_count = len(all_assignments)
+        print(f"✅ Final jersey assignments: {final_count} players identified")
+        for sid, num in sorted(all_assignments.items()):
+            name = all_names.get(sid, "")
+            name_str = f" ({name})" if name else ""
+            print(f"   Track {sid} → #{num}{name_str}")
+    else:
+        print("⚠️  Jersey recognizer not available — skipping")
+
     print("📝 Calculating substitution recommendations...")
     sub_recommender = SubstitutionRecommender()
     sub_recommendations = sub_recommender.recommend(foul_risk_map)
@@ -346,6 +428,8 @@ def main():
         fps=fps,
         total_frames=total_frames,
         match_id=1,
+        jersey_recognizer=jersey_recognizer,
+        lineup_assigner=lineup_assigner,
     )
 
 
