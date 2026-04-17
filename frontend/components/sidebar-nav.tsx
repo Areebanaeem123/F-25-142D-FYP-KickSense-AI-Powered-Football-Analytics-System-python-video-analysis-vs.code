@@ -35,7 +35,7 @@ const navItems: NavItem[] = [
   },
   {
     id: "dribbling",
-    label: "Dribbling Effectiveness",
+    label: "Dribbling",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="1" />
@@ -46,13 +46,13 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    id: "shooting",
-    label: "Shooting Statistics",
+    id: "passing",
+    label: "Passing Accuracy",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="10" />
-        <path d="m16 10-4 4-4-4" />
-        <path d="M12 2v10" />
+        <path d="M5 12h14" />
+        <path d="m12 5 7 7-7 7" />
+        <circle cx="5" cy="12" r="2" />
       </svg>
     ),
   },
@@ -65,6 +65,18 @@ const navItems: NavItem[] = [
         <circle cx="9" cy="7" r="4" />
         <path d="m17 8 5 5" />
         <path d="m22 8-5 5" />
+      </svg>
+    ),
+  },
+  {
+    id: "team-formation",
+    label: "Team Formation",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
   },
@@ -116,7 +128,7 @@ export function SidebarNav({
         )}
       >
         {/* Logo */}
-        <button 
+        <button
           onClick={onLogoClick}
           className="flex flex-col items-center gap-2 px-6 py-10 border-b border-white/5 hover:bg-white/5 transition-all group w-full text-left"
         >

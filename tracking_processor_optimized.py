@@ -154,10 +154,15 @@ class OptimizedTrackingProcessor:
         self.model = load_model(model_path)
         self.tracker = create_tracker()
         
-        # Require CUDA
-        if not torch.cuda.is_available():
-            raise RuntimeError("CUDA is required but not available.")
-        self.device = "cuda"
+        # Device selection (CPU fallback)
+        if torch.cuda.is_available():
+            self.device = "cuda"
+            self.half = True
+            print("🚀 Using CUDA for tracking")
+        else:
+            self.device = "cpu"
+            self.half = False
+            print("⚠️ CUDA not available, falling back to CPU")
         
         # Video properties
         self.cap = cv2.VideoCapture(video_path)
@@ -202,9 +207,9 @@ class OptimizedTrackingProcessor:
         self.stable_class_map = {}
         self.camera_movement_per_frame = []
         
-        # OPTIMIZATION: Cache for detections and classifications
         self.last_detections = []
         self.last_detection_data = []
+        self.last_ball_detections = []
         self.classified_tracks = set()
         
         # Performance tracking
@@ -318,13 +323,15 @@ class OptimizedTrackingProcessor:
         self.old_gray = frame_gray
         return (0, 0)
     
-    def process_video(self):
+    def process_video(self, frames_limit=None):
         """Main tracking loop with optimizations"""
-        print("\n🎬 Starting optimized video processing...")
+        print(f"\n🎬 Starting optimized video processing... (Limit: {frames_limit if frames_limit else 'None'})")
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         frame_idx = 0
         
         while True:
+            if frames_limit and frame_idx >= frames_limit:
+                break
             frame_start = time.time()
             
             ret, frame = self.cap.read()
@@ -351,7 +358,7 @@ class OptimizedTrackingProcessor:
                 with torch.no_grad():
                     results = self.model.predict(
                         frame_small, conf=0.4, iou=0.5,
-                        device=self.device, half=True, verbose=False
+                        device=self.device, half=self.half, verbose=False
                     )[0]
                 
                 detections = []
@@ -377,10 +384,12 @@ class OptimizedTrackingProcessor:
                 # Cache detections
                 self.last_detections = detections
                 self.last_detection_data = detection_data
+                self.last_ball_detections = ball_detections
             else:
                 # Reuse cached detections
                 detections = self.last_detections
                 detection_data = self.last_detection_data
+                ball_detections = self.last_ball_detections
             
             self.timers['detection'] += time.time() - t1
             

@@ -39,14 +39,14 @@ export function Homepage({ onGetStarted }: { onGetStarted: () => void }) {
               </div>
               <div className="h-0.5 w-full bg-[#14B871] rounded-full" />
               <div className="space-y-4">
-                <h2 className="text-2xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter leading-[1] uppercase">
+                <h2 className="text-2xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter leading-[1] uppercase font-outfit">
                   AI POWERED <br />
                   <span className="text-[#14B871]">FOOTBALL</span> <br />
                   <span className="text-[#14B871]">ANALYTICS</span>
                 </h2>
                 <div className="flex items-center gap-3">
                   <div className="h-[2px] w-10 bg-[#14B871]" />
-                  <p className="text-lg sm:text-xl font-bold text-white tracking-[0.4em] uppercase opacity-80">
+                  <p className="text-lg sm:text-xl font-bold text-white tracking-[0.4em] uppercase opacity-80 font-outfit">
                     Intelligence System
                   </p>
                 </div>

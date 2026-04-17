@@ -9,6 +9,7 @@ Uses MANUAL keyframe homography for real-world speed & distance estimation
 import cv2
 import numpy as np
 import os
+import shutil
 from datetime import datetime, timedelta, timezone
 
 from tracking_processor_optimized import OptimizedTrackingProcessor
@@ -22,6 +23,7 @@ from speed_and_distance_estimator import (
 from foul_risk_estimator import FoulRiskEstimator
 from dribbling_analyzer import DribblingAnalyzer
 from shooting_analyzer import ShootingAnalyzer
+from passing_analyzer import PassingAnalyzer
 from substitution_recommender import SubstitutionRecommender
 from lineup_assigner import LineupAssigner
 from db_connect import KicksenseDB
@@ -86,7 +88,6 @@ def persist_results_to_db(tracks, player_stats, foul_risk_map, dribbling_data,
 
         start_ts = datetime.now(timezone.utc)
         safe_fps = max(1, int(fps))
-
         for frame_idx in range(total_frames):
             timestamp = start_ts + timedelta(seconds=frame_idx / safe_fps)
             detections = []
@@ -243,7 +244,7 @@ def main():
         pixels_per_meter=None
     )
 
-    processor.process_video()
+    processor.process_video(frames_limit=None)
     processor.post_process()
     results = processor.get_results()
 
@@ -323,6 +324,24 @@ def main():
     shooting_analyzer = ShootingAnalyzer(fps=fps)
     shooting_data = shooting_analyzer.analyze_tracks(tracks)
     print(f"📊 Shots detected: {len(shooting_data['shot_events'])}")
+
+    print("🎯 Analyzing passing accuracy...")
+    passing_analyzer = PassingAnalyzer(fps=fps, class_map=stable_class_map)
+    passing_data = passing_analyzer.analyze_tracks(tracks)
+    print(f"📊 Passes detected: {len(passing_data['pass_events'])}")
+    for team_id, ts in passing_data.get("team_passing_stats", {}).items():
+        print(f"   Team {team_id}: {ts['total_passes']} attempts, "
+              f"{ts['pass_accuracy']:.1f}% accuracy, {ts.get('interceptions', 0)} interceptions")
+    
+    print("Analyzing team formations...")
+    formation_analyzer = FormationAnalyzer()
+    formation_summary = formation_analyzer.analyze_tracks(tracks)
+    formation_analyzer.print_analysis(formation_summary)
+
+    print("\n⏱️ Ball Possession:")
+    for team_id, ps in passing_data.get("possession_stats", {}).items():
+        print(f"   Team {team_id}: {ps['percentage']:.1f}% ({ps['frames']} frames)")
+
 
 
     player_stats = speed_estimator.export_stats_to_csv(
@@ -404,6 +423,8 @@ def main():
         foul_risk_map=foul_risk_map,
         dribbling_data=dribbling_data,
         shooting_data=shooting_data,
+        passing_data=passing_data,
+        formation_summary=formation_summary,
         fps=fps,
         total_frames=total_frames,
         match_id=1,
@@ -435,6 +456,21 @@ def main():
         height=height,
         total_frames=total_frames
     )
+    
+    # --------------------------------------------------------
+    # STEP 7: EXPORT TO FRONTEND
+    # --------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("STEP 7: Exporting to Frontend")
+    print("-" * 70)
+    
+    frontend_public_video = "frontend/public/video.mp4"
+    try:
+        os.makedirs(os.path.dirname(frontend_public_video), exist_ok=True)
+        shutil.copy2(OUTPUT_VIDEO_PATH, frontend_public_video)
+        print(f"✅ Video exported to frontend: {frontend_public_video}")
+    except Exception as e:
+        print(f"⚠️ Failed to export video to frontend: {e}")
 
     # --------------------------------------------------------
     # FINAL SUMMARY

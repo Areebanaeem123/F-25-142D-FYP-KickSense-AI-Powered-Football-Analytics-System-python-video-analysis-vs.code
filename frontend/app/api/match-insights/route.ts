@@ -126,15 +126,31 @@ export async function GET(request: Request) {
         }
       })
 
+      const possessionResult = await client.query(
+        `SELECT team_id, possession_percentage FROM team_possession_stats WHERE match_id = $1`,
+        [matchId]
+      )
+      const possessions = possessionResult.rows
+
+      const teamStats = [
+        { label: "Tracked Players", value: Number(agg.tracked_players || 0) },
+        { label: "Avg Speed (km/h)", value: Number((agg.avg_speed_kmh || 0).toFixed(2)) },
+        { label: "Peak Speed (km/h)", value: Number((agg.peak_speed_kmh || 0).toFixed(2)) },
+        { label: "Total Distance (km)", value: Number(totalDistanceKm.toFixed(2)) },
+        { label: "High Card Risk", value: highRiskPlayers },
+      ]
+
+      possessions.forEach((p) => {
+        const teamName = p.team_id === 0 ? "Team A" : "Team B"
+        teamStats.push({
+          label: `${teamName} Possession (%)`,
+          value: Number(p.possession_percentage.toFixed(1)),
+        })
+      })
+
       return NextResponse.json({
         playerRankings: rankings,
-        teamStats: [
-          { label: "Tracked Players", value: Number(agg.tracked_players || 0) },
-          { label: "Avg Speed (km/h)", value: Number((agg.avg_speed_kmh || 0).toFixed(2)) },
-          { label: "Peak Speed (km/h)", value: Number((agg.peak_speed_kmh || 0).toFixed(2)) },
-          { label: "Total Distance (km)", value: Number(totalDistanceKm.toFixed(2)) },
-          { label: "High Card Risk", value: highRiskPlayers },
-        ],
+        teamStats,
         speedTimeline: speedData,
       })
     } finally {

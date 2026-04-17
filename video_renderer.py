@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+import os
+import subprocess
 from Tracking import draw_ellipse, CLASS_COLORS
 
 class VideoRenderer:
@@ -261,3 +263,37 @@ class VideoRenderer:
         self.out.release()
         cv2.destroyAllWindows()
         print(f"✅ Video saved to: {self.output_path}")
+        
+        # Post-process to ensure H.264 compatibility if needed
+        self.ensure_browser_compatibility()
+
+
+    def ensure_browser_compatibility(self):
+        """Checks the output video and converts to H.264 if necessary for browser playback."""
+        if not os.path.exists(self.output_path):
+            return
+
+        print("🔍 Checking video compatibility...")
+        temp_path = self.output_path.replace(".mp4", ".browser.mp4")
+        
+        print(f"🔄 Ensuring H.264 compatibility with ffmpeg...")
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", self.output_path,
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-preset", "fast",
+            "-crf", "23",
+            temp_path
+        ]
+        
+        try:
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            os.replace(temp_path, self.output_path)
+            print(f"✨ Video optimized for browser playback: {self.output_path}")
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️ Browser optimization failed: {e.stderr.decode()}")
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        except Exception as e:
+            print(f"⚠️ Browser optimization error: {e}")

@@ -2,6 +2,7 @@ import psycopg2
 from psycopg2.extras import execute_values
 from typing import Dict
 import json
+import math
 
 class KicksenseDB:
     def __init__(self, db_config):
@@ -125,6 +126,66 @@ class KicksenseDB:
             ALTER TABLE shot_events ADD COLUMN IF NOT EXISTS trajectory JSONB;
 
 
+            -- Passing Stats columns (schema evolution for existing volumes)
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS passes_attempted INT DEFAULT 0;
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS passes_completed INT DEFAULT 0;
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS pass_accuracy DOUBLE PRECISION DEFAULT 0.0;
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS avg_pass_distance_m DOUBLE PRECISION DEFAULT 0.0;
+            ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS progressive_passes INT DEFAULT 0;
+
+            CREATE TABLE IF NOT EXISTS pass_events (
+                pass_id SERIAL PRIMARY KEY,
+                match_id INT REFERENCES matches(match_id),
+                passer_id INT,
+                receiver_id INT,
+                passer_team INT REFERENCES teams(team_id),
+                receiver_team INT,
+                frame_idx INT,
+                time TIMESTAMPTZ,
+                distance_m DOUBLE PRECISION,
+                is_completed BOOLEAN,
+                is_progressive BOOLEAN,
+                x_origin DOUBLE PRECISION,
+                y_origin DOUBLE PRECISION,
+                x_target DOUBLE PRECISION,
+                y_target DOUBLE PRECISION,
+                trajectory JSONB
+            );
+
+            CREATE TABLE IF NOT EXISTS team_passing_stats (
+                match_id INT REFERENCES matches(match_id),
+                team_id INT REFERENCES teams(team_id),
+                total_passes INT DEFAULT 0,
+                completed_passes INT DEFAULT 0,
+                pass_accuracy DOUBLE PRECISION DEFAULT 0.0,
+                total_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
+                progressive_passes INT DEFAULT 0,
+                avg_pass_distance_m DOUBLE PRECISION DEFAULT 0.0,
+                interceptions INT DEFAULT 0,
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                PRIMARY KEY (match_id, team_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS team_possession_stats (
+                match_id INT REFERENCES matches(match_id),
+                team_id INT REFERENCES teams(team_id),
+                possession_percentage DOUBLE PRECISION DEFAULT 0.0,
+                possession_frames INT DEFAULT 0,
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                PRIMARY KEY (match_id, team_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS team_formation_stats (
+                match_id INT REFERENCES matches(match_id),
+                team_id INT REFERENCES teams(team_id),
+                formation VARCHAR(20),
+                status VARCHAR(50),
+                avg_area DOUBLE PRECISION DEFAULT 0.0,
+                area_per_player DOUBLE PRECISION DEFAULT 0.0,
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                PRIMARY KEY (match_id, team_id)
+            );
+
             CREATE TABLE IF NOT EXISTS team_dribbling_stats (
                 match_id INT REFERENCES matches(match_id),
                 team_id INT REFERENCES teams(team_id),
@@ -155,7 +216,11 @@ class KicksenseDB:
             return
         try:
             self.cursor.execute("DELETE FROM tracking_data WHERE match_id = %s", (match_id,))
+            self.cursor.execute("DELETE FROM pass_events WHERE match_id = %s", (match_id,))
+            self.cursor.execute("DELETE FROM team_passing_stats WHERE match_id = %s", (match_id,))
             self.cursor.execute("DELETE FROM team_dribbling_stats WHERE match_id = %s", (match_id,))
+            self.cursor.execute("DELETE FROM team_possession_stats WHERE match_id = %s", (match_id,))
+            self.cursor.execute("DELETE FROM team_formation_stats WHERE match_id = %s", (match_id,))
             self.cursor.execute("DELETE FROM shot_events WHERE match_id = %s", (match_id,))
             self.cursor.execute("DELETE FROM player_match_stats WHERE match_id = %s", (match_id,))
             self.conn.commit()
